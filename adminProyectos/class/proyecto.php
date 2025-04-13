@@ -9,7 +9,7 @@ class Proyecto
     function __construct() 
     {
         // Ruta ajustada para llegar a conexion.php basada en la estructura actual
-        $rutaConexion = __DIR__ . '/../class/conexion.php';
+        $rutaConexion = __DIR__ . '/../../class/conexion.php';
         
         // Verificar si el archivo existe
         if (!file_exists($rutaConexion)) {
