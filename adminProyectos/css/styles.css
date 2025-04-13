@@ -1,0 +1,228 @@
+
+/* Estilos generales */
+body {
+    background-color: #f8f9fa;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    border: none;
+    margin-bottom: 20px;
+}
+
+.card-header {
+    border-top-left-radius: 8px !important;
+    border-top-right-radius: 8px !important;
+}
+
+/* Estilos para estados */
+.estado-cancelado {
+    background-color: #ffcccc !important;
+    color: #d32f2f;
+    font-weight: bold;
+}
+
+.estado-pausado {
+    background-color: #fff9c4 !important;
+    color: #f57f17;
+    font-weight: bold;
+}
+
+.estado-pendiente {
+    background-color: #ffc107 !important;
+    color: white;
+    font-weight: bold;
+}
+
+.estado-proceso {
+    background-color: #e8f5e9 !important;
+    color: #2e7d32;
+    font-weight: bold;
+}
+
+.estado-terminado {
+    background-color: #e0f2f1 !important;
+    color: #00796b;
+    font-weight: bold;
+}
+
+/* Estilos para prioridades */
+.prioridad-badge {
+    padding: 0.35em 0.65em;
+    border-radius: 0.25rem;
+    font-weight: bold;
+    display: inline-block;
+    text-align: center;
+    white-space: nowrap;
+    vertical-align: baseline;
+}
+
+.prioridad-urgente {
+    background-color: #d32f2f !important;
+    color: white;
+}
+
+.prioridad-alta {
+    background-color: #f44336 !important;
+    color: white;
+}
+
+.prioridad-media {
+    background-color: #ff9800 !important;
+    color: white;
+}
+
+.prioridad-baja {
+    background-color: #4caf50 !important;
+    color: white;
+}
+
+/* Estilos para la barra de progreso */
+.progress {
+    height: 20px;
+    border-radius: 10px;
+}
+
+.progress-bar-container {
+    width: 100%;
+    background-color: #e9ecef;
+    border-radius: 10px;
+    position: relative;
+    height: 20px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    border-radius: 10px;
+    text-align: center;
+    line-height: 20px;
+    color: white;
+    font-weight: bold;
+    transition: width 0.5s ease;
+}
+
+/* Colores para diferentes niveles de progreso */
+.progress-low {
+    background-color: #ff5722;
+}
+
+.progress-medium {
+    background-color: #ff9800;
+}
+
+.progress-high {
+    background-color: #4caf50;
+}
+
+.progress-complete {
+    background-color: #2e7d32;
+}
+
+/* Estilos para badges circulares de progreso */
+.circular-progress {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: conic-gradient(var(--color) var(--percentage), #e9ecef var(--percentage));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.circular-progress::before {
+    content: '';
+    position: absolute;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background-color: white;
+}
+
+.circular-progress span {
+    position: relative;
+    font-weight: bold;
+    font-size: 13px;
+    color: var(--color);
+}
+
+/* Estilos para la tabla de avance en DataTables */
+.progress-circle {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: conic-gradient(var(--color) var(--percentage), #e9ecef var(--percentage));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+.progress-circle::before {
+    content: '';
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background-color: white;
+}
+
+.progress-circle span {
+    position: relative;
+    font-weight: bold;
+    font-size: 11px;
+    color: var(--color);
+}
+
+/* Botón de acción para detalle */
+.btn-detalle {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    color: #0d6efd;
+    background-color: transparent;
+    border: 1px solid #0d6efd;
+    border-radius: 0.25rem;
+    transition: all 0.2s;
+}
+
+.btn-detalle:hover {
+    color: white;
+    background-color: #0d6efd;
+}
+
+/* Estilos para modales */
+.modal-header {
+    border-top-left-radius: 0.3rem;
+    border-top-right-radius: 0.3rem;
+}
+
+/* Ajustes responsive */
+@media (max-width: 992px) {
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .form-label {
+        font-size: 0.9rem;
+    }
+    
+    .circular-progress {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .circular-progress::before {
+        width: 38px;
+        height: 38px;
+    }
+}
+
+/* Mejoras de accesibilidad */
+.badge {
+    padding: 0.5em 0.8em;
+    font-size: 85%;
+}
