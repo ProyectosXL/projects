@@ -29,21 +29,39 @@ $(document).ready(function() {
         }
     });
     
-    // Confirmar antes de enviar el formulario
+    // Validación de comentario y autor
+    $('#comentario, #autor').on('change input', function() {
+        validarComentarioAutor();
+    });
+    
+    // Validar antes de enviar el formulario
     $('form').on('submit', function(e) {
-        // Validar que al menos se haya modificado un campo
-        // Aquí se podría agregar esa lógica si es necesario
-        
-        // Si se agrega un comentario, verificar que se seleccionó un autor
-        const comentario = $('#comentario').val().trim();
-        const autor = $('#autor').val();
-        
-        if (comentario && !autor) {
+        // Verificar comentario y autor
+        if (!validarComentarioAutor()) {
             e.preventDefault();
-            alert('Debe seleccionar un responsable para el comentario');
             return false;
         }
         
         return true;
     });
+    
+    // Función para validar que si hay comentario, debe haber autor
+    function validarComentarioAutor() {
+        const comentario = $('#comentario').val().trim();
+        const autor = $('#autor').val();
+        
+        if (comentario && !autor) {
+            $('#autor').addClass('is-invalid');
+            // Si no existe ya un mensaje de error, lo añadimos
+            if ($('#autor-error-msg').length === 0) {
+                $('<div id="autor-error-msg" class="invalid-feedback">Debe seleccionar un responsable para el comentario</div>')
+                    .insertAfter('#autor');
+            }
+            return false;
+        } else {
+            $('#autor').removeClass('is-invalid');
+            $('#autor-error-msg').remove();
+            return true;
+        }
+    }
 });

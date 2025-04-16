@@ -440,17 +440,32 @@ class Proyecto
                 throw new Exception("No hay conexión a la base de datos central");
             }
             
-            // Obtener la fecha actual
+            // Obtener la fecha actual en formato ANSI SQL
             $fechaActual = date('Y-m-d H:i:s');
             
             // Preparar la consulta SQL para insertar el comentario
             $sql = "INSERT INTO ProyectosComentarios (IdProyecto, Autor, Comentario, FechaCreacion) VALUES (?, ?, ?, ?)";
             
-            $params = array($idProyecto, $autor, $comentario, $fechaActual);
+            // Convertir a tipos adecuados para SQL Server
+            $idProyectoInt = intval($idProyecto);
             
-            $result = sqlsrv_query($this->cid_central, $sql, $params);
+            // Crear parámetros con tipos específicos para evitar conversiones implícitas
+            $params = array(
+                array($idProyectoInt, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_INT, SQLSRV_SQLTYPE_INT),
+                array($autor, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
+                array($comentario, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR('max')),
+                array($fechaActual, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_DATETIME)
+            );
             
-            if ($result === false) {
+            // Usar sqlsrv_prepare para preparar la consulta con los parámetros tipados
+            $stmt = sqlsrv_prepare($this->cid_central, $sql, $params);
+            
+            if (!$stmt) {
+                throw new Exception("Error al preparar la consulta: " . print_r(sqlsrv_errors(), true));
+            }
+            
+            // Ejecutar la consulta preparada
+            if (!sqlsrv_execute($stmt)) {
                 throw new Exception("Error al agregar el comentario: " . print_r(sqlsrv_errors(), true));
             }
             
@@ -536,6 +551,27 @@ class Proyecto
                 
                 if ($resultCrear === false) {
                     throw new Exception("Error al crear la tabla de comentarios: " . print_r(sqlsrv_errors(), true));
+                }
+            } else {
+                // Si la tabla existe, verificamos si necesita ser alterada para corregir tipos
+                $sql = "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS 
+                    WHERE TABLE_NAME = 'ProyectosComentarios' AND COLUMN_NAME = 'FechaCreacion'";
+                $result = sqlsrv_query($this->cid_central, $sql);
+                
+                if ($result === false) {
+                    throw new Exception("Error al verificar el tipo de columna FechaCreacion: " . print_r(sqlsrv_errors(), true));
+                }
+                
+                $row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC);
+                
+                // Si el tipo no es DATETIME, alteramos la tabla
+                if ($row && $row['DATA_TYPE'] !== 'datetime') {
+                    $sqlAlter = "ALTER TABLE ProyectosComentarios ALTER COLUMN FechaCreacion DATETIME NOT NULL";
+                    $resultAlter = sqlsrv_query($this->cid_central, $sqlAlter);
+                    
+                    if ($resultAlter === false) {
+                        throw new Exception("Error al modificar la columna FechaCreacion: " . print_r(sqlsrv_errors(), true));
+                    }
                 }
             }
             

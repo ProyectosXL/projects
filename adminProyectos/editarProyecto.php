@@ -75,6 +75,7 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editar Proyecto</title>
+    <link rel="icon" type="image/png" href="../images/logo-xl-project.png">
     
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -290,19 +291,20 @@ try {
                     <div class="col-md-4">
                         <div class="mb-3">
                             <label for="autor" class="form-label">Responsable</label>
-                            <select class="form-select" id="autor" name="autor" required>
+                            <select class="form-select" id="autor" name="autor">
                                 <option value="">Seleccionar responsable...</option>
                                 <option value="Ramiro Orozco">Ramiro Orozco</option>
                                 <option value="Eduardo Berga">Eduardo Berga</option>
                                 <option value="Agustina Latorre">Agustina Latorre</option>
                                 <option value="Santos García">Santos García</option>
                             </select>
+                            <div class="form-text text-muted">Seleccione un responsable si desea añadir un comentario</div>
                         </div>
                     </div>
                     <div class="col-md-8">
                         <div class="mb-3">
                             <label for="comentario" class="form-label">Comentario</label>
-                            <textarea class="form-control" id="comentario" name="comentario" rows="3" placeholder="Ingrese su comentario o anotación..."></textarea>
+                            <textarea class="form-control" id="comentario" name="comentario" rows="3" placeholder="Ingrese su comentario o anotación (opcional)..."></textarea>
                         </div>
                     </div>
                 </div>
