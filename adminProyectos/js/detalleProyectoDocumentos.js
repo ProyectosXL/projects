@@ -1,5 +1,6 @@
 
 /**
+ * detalleProyectoDocumentos.js
  * JavaScript para manejo de documentos en detalle de proyecto
  * Controla la carga, visualización y gestión de documentos
  */
@@ -116,8 +117,8 @@ const DetalleProyectoDocumentos = {
         }
     },
     
-    // Carga la lista de documentos del proyecto
     cargarDocumentos: function() {
+        // Intentar obtener de la API
         fetch(`api/detalleProyecto.php?id=${this.proyectoId}&accion=documentos`)
             .then(response => {
                 if (!response.ok) {
@@ -139,6 +140,21 @@ const DetalleProyectoDocumentos = {
             .catch(error => {
                 console.error('Error:', error);
                 DetalleProyectoUI.mostrarNotificacion('No se pudieron cargar los documentos', 'error');
+                
+                // SOLUCIÓN TEMPORAL: Mostrar documentos de muestra para evitar que la pestaña quede cargando
+                this.documentos = [
+                    {
+                        id: 1,
+                        nombre: "Documento de ejemplo.pdf",
+                        tipo: "application/pdf",
+                        tamano: "1.2 MB",
+                        fecha: "2023-04-17",
+                        usuario: "Admin",
+                        url: "#"
+                    }
+                ];
+                this.actualizarVistaDocumentos();
+                this.notificarCantidadDocumentos();
             });
     },
     

@@ -17,7 +17,6 @@ const DetalleProyectoComentarios = {
         this.cargarComentarios();
     },
     
-    // Carga comentarios desde la API
     cargarComentarios: function() {
         fetch(`api/detalleProyecto.php?id=${this.proyectoId}&accion=comentarios`)
             .then(response => {
@@ -38,8 +37,20 @@ const DetalleProyectoComentarios = {
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                DetalleProyectoUI.mostrarNotificacion('No se pudieron cargar los comentarios', 'error');
+                console.error('Error en cargarComentarios:', error);
+                DetalleProyectoUI.mostrarNotificacion('No se pudieron cargar los comentarios: ' + error.message, 'error');
+                
+                // SOLUCIÓN TEMPORAL: Mostrar comentarios de muestra
+                this.comentarios = [
+                    {
+                        Id: 1,
+                        Autor: "Usuario Ejemplo",
+                        Comentario: "Este es un comentario de ejemplo para mostrar mientras se implementa la API.",
+                        FechaCreacion: new Date().toISOString().split('T')[0]
+                    }
+                ];
+                this.actualizarVistaComentarios();
+                this.notificarCantidadComentarios();
             });
     },
     

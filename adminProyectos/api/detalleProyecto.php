@@ -113,41 +113,66 @@ function obtenerComentariosProyecto($proyectoObj, $idProyecto) {
 
 /**
  * Obtiene los documentos de un proyecto
+ * Actualizado para incluir enlaces a Google Drive
  */
 function obtenerDocumentosProyecto($proyectoObj, $idProyecto) {
     try {
-        // En una implementación real, aquí se obtendrían los documentos desde la base de datos
-        // Para esta simulación, creamos algunos documentos de ejemplo
+        // Obtener conexión a base de datos
+        $conexion = $proyectoObj->getConexion();
         
-        $documentos = array(
-            array(
-                'id' => 1,
-                'nombre' => 'Especificación de requerimientos.pdf',
-                'tipo' => 'application/pdf',
-                'tamano' => '2.4 MB',
-                'fecha' => date('Y-m-d'),
-                'usuario' => 'Admin',
-                'url' => '#'
-            ),
-            array(
-                'id' => 2,
-                'nombre' => 'Cronograma de proyecto.xlsx',
-                'tipo' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                'tamano' => '1.2 MB',
-                'fecha' => date('Y-m-d', strtotime("-1 day")),
-                'usuario' => 'Admin',
-                'url' => '#'
-            ),
-            array(
-                'id' => 3,
-                'nombre' => 'Diagrama de arquitectura.png',
-                'tipo' => 'image/png',
-                'tamano' => '0.8 MB',
-                'fecha' => date('Y-m-d', strtotime("-2 day")),
-                'usuario' => 'Admin',
-                'url' => '#'
-            )
+        // Consulta para obtener documentos
+        $sql = "SELECT 
+                    ID, 
+                    NombreOriginal, 
+                    NombreArchivo, 
+                    TipoArchivo, 
+                    TamanoArchivo, 
+                    FechaSubida,
+                    DriveFileId,
+                    DriveFileUrl
+                FROM DocumentosProyectos 
+                WHERE ID_Proyecto = ?
+                ORDER BY FechaSubida DESC";
+        
+        $params = array(
+            array($idProyecto, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_INT, SQLSRV_SQLTYPE_INT)
         );
+        
+        $stmt = sqlsrv_prepare($conexion, $sql, $params);
+        
+        if (!$stmt) {
+            throw new Exception('Error al preparar la consulta para obtener documentos: ' . print_r(sqlsrv_errors(), true));
+        }
+        
+        if (!sqlsrv_execute($stmt)) {
+            throw new Exception('Error al obtener documentos: ' . print_r(sqlsrv_errors(), true));
+        }
+        
+        $documentos = array();
+        
+        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            // Formatear fecha
+            $fecha = $row['FechaSubida'] ? $row['FechaSubida']->format('Y-m-d') : 'Desconocida';
+            
+            // Formatear tamaño
+            $tamano = formatearTamano($row['TamanoArchivo']);
+            
+            // Construir la URL local para el archivo
+            $rutaArchivo = 'documentos/' . $idProyecto . '/' . $row['NombreArchivo'];
+            
+            $documentos[] = array(
+                'id' => $row['ID'],
+                'nombre' => $row['NombreOriginal'],
+                'archivo' => $row['NombreArchivo'],
+                'tipo' => $row['TipoArchivo'],
+                'tamano' => $tamano,
+                'fecha' => $fecha,
+                'usuario' => 'Admin', // En una implementación real, obtendríamos el usuario que subió el archivo
+                'url' => $rutaArchivo,
+                'driveFileId' => $row['DriveFileId'],
+                'driveUrl' => $row['DriveFileUrl']
+            );
+        }
         
         // Responder con los documentos
         responderExito('Documentos obtenidos correctamente', array(
@@ -157,6 +182,20 @@ function obtenerDocumentosProyecto($proyectoObj, $idProyecto) {
     } catch (Exception $e) {
         responderError('Error al obtener documentos: ' . $e->getMessage());
     }
+}
+
+/**
+ * Función auxiliar para formatear el tamaño de archivo
+ */
+function formatearTamano($bytes) {
+    if ($bytes === 0 || $bytes === null) return '0 Bytes';
+    
+    $bytes = intval($bytes);
+    $k = 1024;
+    $sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    $i = floor(log($bytes) / log($k));
+    
+    return round($bytes / pow($k, $i), 2) . ' ' . $sizes[$i];
 }
 
 /**

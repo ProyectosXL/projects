@@ -1,212 +1,6 @@
-
 <?php
 /**
- * API para gestionar la carga de proyectos
- */
-
-// Configuración para mostrar errores (solo para desarrollo)
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
-// Configuración de cabeceras para respuestas JSON
-header('Content-Type: application/json');
-
-// Incluir clase de proyecto
-require_once '../class/proyecto.php';
-
-try {
-    // Crear instancia del proyecto
-    $proyectoObj = new Proyecto();
-    
-    // Determinar la acción a realizar
-    $accion = isset($_GET['accion']) ? $_GET['accion'] : (isset($_POST['accion']) ? $_POST['accion'] : '');
-    
-    // Ejecutar acción correspondiente
-    switch ($accion) {
-        case 'obtenerSolicitantes':
-            obtenerSolicitantes($proyectoObj);
-            break;
-            
-        case '':
-            // Si no se especifica acción, asumimos que es crear proyecto (POST)
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                crearProyecto($proyectoObj);
-            } else {
-                responderError('No se especificó una acción válida');
-            }
-            break;
-            
-        default:
-            responderError('Acción no reconocida: ' . $accion);
-            break;
-    }
-    
-} catch (Exception $e) {
-    responderError('Error en el servidor: ' . $e->getMessage());
-}
-
-/**
- * Obtiene la lista de solicitantes desde la base de datos
- */
-function obtenerSolicitantes($proyectoObj) {
-    try {
-        // Ahora usamos el método que agregamos a la clase Proyecto
-        $solicitantes = $proyectoObj->obtenerSolicitantes();
-        
-        // Responder con los solicitantes
-        responderExito('Solicitantes obtenidos correctamente', array(
-            'solicitantes' => $solicitantes
-        ));
-        
-    } catch (Exception $e) {
-        responderError('Error al obtener solicitantes: ' . $e->getMessage());
-    }
-}
-
-/**
- * Crea un nuevo proyecto en la base de datos
- */
-function crearProyecto($proyectoObj) {
-    try {
-        // Validar datos obligatorios
-        $camposRequeridos = array('tipo', 'desarrollo', 'solicitante', 'pais', 'sector', 'funcionalidad');
-        foreach ($camposRequeridos as $campo) {
-            if (!isset($_POST[$campo]) || empty($_POST[$campo])) {
-                responderError('El campo ' . $campo . ' es obligatorio');
-                return;
-            }
-        }
-        
-        // Obtener datos del formulario
-        $datosProyecto = array(
-            'tipo' => $_POST['tipo'],
-            'desarrollo' => $_POST['desarrollo'],
-            'solicitante' => $_POST['solicitante'],
-            'pais' => $_POST['pais'],
-            'sector' => $_POST['sector'],
-            'funcionalidad' => $_POST['funcionalidad']
-        );
-        
-        // Crear el proyecto utilizando el método de la clase Proyecto
-        $proyectoId = $proyectoObj->crearProyecto($datosProyecto);
-        
-        // Procesar documentos adjuntos si existen
-        $documentosGuardados = procesarDocumentos($proyectoObj->getConexion(), $proyectoId);
-        
-        // Responder con éxito
-        responderExito('Proyecto creado correctamente', array(
-            'id' => $proyectoId,
-            'documentos' => $documentosGuardados
-        ));
-        
-    } catch (Exception $e) {
-        responderError('Error al crear el proyecto: ' . $e->getMessage());
-    }
-}
-
-/**
- * Verifica si la tabla HistorialProyectos existe, si no, la crea
- */
-function verificarTablaHistorialProyectos($conexion) {
-    // Verificar si la tabla existe
-    $sql = "SELECT COUNT(*) AS count FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'HistorialProyectos'";
-    $result = sqlsrv_query($conexion, $sql);
-    
-    if ($result === false) {
-        throw new Exception('Error al verificar la tabla HistorialProyectos: ' . print_r(sqlsrv_errors(), true));
-    }
-    
-    $row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC);
-    
-    if ($row['count'] == 0) {
-        // Crear la tabla si no existe
-        $sqlCrear = "CREATE TABLE HistorialProyectos (
-            ID INT IDENTITY(1,1) PRIMARY KEY,
-            TipoPresentacion NVARCHAR(255),
-            Desarrollo NVARCHAR(255),
-            Solicitante NVARCHAR(255),
-            Pais NVARCHAR(255),
-            Sector NVARCHAR(255),
-            Funcionalidad NVARCHAR(MAX),
-            FechaCreacion DATETIME,
-            FechaFinalizacion DATETIME NULL,
-            Estado NVARCHAR(255),
-            EtapaProyecto NVARCHAR(255),
-            LiderProyecto NVARCHAR(255) NULL,
-            InicioProgramado DATE NULL,
-            FechaLimite DATE NULL,
-            InicioReal DATE NULL,
-            FinalizacionReal DATE NULL,
-            Prioridad NVARCHAR(50) NULL
-        )";
-        
-        $resultCrear = sqlsrv_query($conexion, $sqlCrear);
-        
-        if ($resultCrear === false) {
-            throw new Exception('Error al crear la tabla HistorialProyectos: ' . print_r(sqlsrv_errors(), true));
-        }
-    } else {
-        // Verificar si la columna Desarrollo existe, y si no, agregarla
-        $sql = "SELECT COUNT(*) AS count FROM INFORMATION_SCHEMA.COLUMNS 
-               WHERE TABLE_NAME = 'HistorialProyectos' AND COLUMN_NAME = 'Desarrollo'";
-        $result = sqlsrv_query($conexion, $sql);
-        
-        if ($result === false) {
-            throw new Exception('Error al verificar la columna Desarrollo: ' . print_r(sqlsrv_errors(), true));
-        }
-        
-        $row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC);
-        
-        if ($row['count'] == 0) {
-            // Agregar la columna Desarrollo
-            $sqlAlter = "ALTER TABLE HistorialProyectos ADD Desarrollo NVARCHAR(255)";
-            $resultAlter = sqlsrv_query($conexion, $sqlAlter);
-            
-            if ($resultAlter === false) {
-                throw new Exception('Error al agregar la columna Desarrollo: ' . print_r(sqlsrv_errors(), true));
-            }
-        }
-    }
-}
-
-/**
- * Verifica si la tabla DocumentosProyectos existe, si no, la crea
- */
-function verificarTablaDocumentosProyectos($conexion) {
-    // Verificar si la tabla existe
-    $sql = "SELECT COUNT(*) AS count FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'DocumentosProyectos'";
-    $result = sqlsrv_query($conexion, $sql);
-    
-    if ($result === false) {
-        throw new Exception('Error al verificar la tabla DocumentosProyectos: ' . print_r(sqlsrv_errors(), true));
-    }
-    
-    $row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC);
-    
-    if ($row['count'] == 0) {
-        // Crear la tabla si no existe
-        $sqlCrear = "CREATE TABLE DocumentosProyectos (
-            ID INT IDENTITY(1,1) PRIMARY KEY,
-            ID_Proyecto INT NOT NULL,
-            NombreOriginal NVARCHAR(255) NOT NULL,
-            NombreArchivo NVARCHAR(255) NOT NULL,
-            TipoArchivo NVARCHAR(100),
-            TamanoArchivo BIGINT,
-            FechaSubida DATETIME,
-            FOREIGN KEY (ID_Proyecto) REFERENCES HistorialProyectos(ID)
-        )";
-        
-        $resultCrear = sqlsrv_query($conexion, $sqlCrear);
-        
-        if ($resultCrear === false) {
-            throw new Exception('Error al crear la tabla DocumentosProyectos: ' . print_r(sqlsrv_errors(), true));
-        }
-    }
-}
-
-/**
- * Procesa y guarda los documentos adjuntos
+ * Procesa y guarda los documentos adjuntos (localmente y en Google Drive)
  */
 function procesarDocumentos($conexion, $proyectoId) {
     $documentosGuardados = array();
@@ -219,15 +13,33 @@ function procesarDocumentos($conexion, $proyectoId) {
     }
     
     // Crear directorio para almacenar documentos si no existe
-    $directorioBase = '../documentos/';
+    $directorioBase = __DIR__ . '/../documentos/';
     $directorioProyecto = $directorioBase . $proyectoId . '/';
     
+    // Crear directorio base si no existe
     if (!file_exists($directorioBase)) {
-        mkdir($directorioBase, 0755, true);
+        if (!mkdir($directorioBase, 0755, true)) {
+            error_log("No se pudo crear el directorio base: $directorioBase");
+            throw new Exception('Error al crear el directorio para documentos');
+        }
     }
     
+    // Crear directorio del proyecto si no existe
     if (!file_exists($directorioProyecto)) {
-        mkdir($directorioProyecto, 0755, true);
+        if (!mkdir($directorioProyecto, 0755, true)) {
+            error_log("No se pudo crear el directorio del proyecto: $directorioProyecto");
+            throw new Exception('Error al crear el directorio para documentos del proyecto');
+        }
+    }
+    
+    // Intentar inicializar Google Drive API
+    $googleDrive = null;
+    try {
+        require_once __DIR__ . '/../class/GoogleDriveAPI.php';
+        $googleDrive = new GoogleDriveAPI();
+    } catch (Exception $e) {
+        // Loguear el error pero continuar con el almacenamiento local
+        error_log("Error al inicializar Google Drive API: " . $e->getMessage());
     }
     
     // Procesar cada documento
@@ -235,6 +47,7 @@ function procesarDocumentos($conexion, $proyectoId) {
         $docKey = 'documento_' . $i;
         
         if (!isset($_FILES[$docKey]) || $_FILES[$docKey]['error'] !== UPLOAD_ERR_OK) {
+            error_log("Error con el archivo $docKey: " . ($_FILES[$docKey]['error'] ?? 'No definido'));
             continue;
         }
         
@@ -249,30 +62,105 @@ function procesarDocumentos($conexion, $proyectoId) {
         $nombreArchivo = uniqid('doc_') . '.' . $extension;
         $rutaDestino = $directorioProyecto . $nombreArchivo;
         
+        // Verificar si el archivo temporal existe
+        if (!file_exists($rutaTemporal)) {
+            error_log("El archivo temporal no existe: $rutaTemporal");
+            continue;
+        }
+        
+        // Variables para Google Drive
+        $driveFileId = null;
+        $driveFileUrl = null;
+        
         // Mover el archivo al directorio de destino
         if (move_uploaded_file($rutaTemporal, $rutaDestino)) {
-            // Guardar información del documento en la base de datos
-            $sql = "INSERT INTO DocumentosProyectos (
-                        ID_Proyecto,
-                        NombreOriginal,
-                        NombreArchivo,
-                        TipoArchivo,
-                        TamanoArchivo,
-                        FechaSubida
-                    ) VALUES (?, ?, ?, ?, ?, ?)";
+            error_log("Archivo movido correctamente a: $rutaDestino");
             
-            $params = array(
-                $proyectoId,
-                $nombreOriginal,
-                $nombreArchivo,
-                $tipoArchivo,
-                $tamanoArchivo,
-                date('Y-m-d H:i:s')
-            );
+            // Intentar subir a Google Drive si está disponible
+            if ($googleDrive !== null) {
+                try {
+                    // La función uploadProjectFile establece la estructura de carpetas 
+                    // y sube el archivo a la carpeta del proyecto
+                    $driveFile = $googleDrive->uploadProjectFile(
+                        $rutaDestino,
+                        $nombreOriginal,
+                        $proyectoId,
+                        $tipoArchivo
+                    );
+                    
+                    $driveFileId = $driveFile['id'];
+                    $driveFileUrl = $driveFile['webViewLink'];
+                    
+                    error_log("Archivo subido correctamente a Google Drive: $driveFileUrl");
+                } catch (Exception $e) {
+                    // Loguear el error pero continuar con el almacenamiento local
+                    error_log("Error al subir a Google Drive: " . $e->getMessage());
+                }
+            }
             
-            $stmt = sqlsrv_query($conexion, $sql, $params);
+            // Verificar si la tabla tiene las columnas para Drive
+            verificarTablaDocumentosProyectos($conexion);
             
-            if ($stmt === false) {
+            // Crear consulta SQL según si tenemos información de Drive o no
+            if ($driveFileId && $driveFileUrl) {
+                $sql = "INSERT INTO DocumentosProyectos (
+                            ID_Proyecto,
+                            NombreOriginal,
+                            NombreArchivo,
+                            TipoArchivo,
+                            TamanoArchivo,
+                            FechaSubida,
+                            DriveFileId,
+                            DriveFileUrl
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                
+                $fechaActual = date('Y-m-d H:i:s');
+                $proyectoIdInt = intval($proyectoId);
+                $tamanoArchivoInt = intval($tamanoArchivo);
+                
+                $params = array(
+                    array($proyectoIdInt, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_INT, SQLSRV_SQLTYPE_INT),
+                    array($nombreOriginal, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
+                    array($nombreArchivo, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
+                    array($tipoArchivo, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(100)),
+                    array($tamanoArchivoInt, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_INT, SQLSRV_SQLTYPE_BIGINT),
+                    array($fechaActual, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_DATETIME),
+                    array($driveFileId, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
+                    array($driveFileUrl, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(500))
+                );
+            } else {
+                $sql = "INSERT INTO DocumentosProyectos (
+                            ID_Proyecto,
+                            NombreOriginal,
+                            NombreArchivo,
+                            TipoArchivo,
+                            TamanoArchivo,
+                            FechaSubida
+                        ) VALUES (?, ?, ?, ?, ?, ?)";
+                
+                $fechaActual = date('Y-m-d H:i:s');
+                $proyectoIdInt = intval($proyectoId);
+                $tamanoArchivoInt = intval($tamanoArchivo);
+                
+                $params = array(
+                    array($proyectoIdInt, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_INT, SQLSRV_SQLTYPE_INT),
+                    array($nombreOriginal, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
+                    array($nombreArchivo, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
+                    array($tipoArchivo, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(100)),
+                    array($tamanoArchivoInt, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_INT, SQLSRV_SQLTYPE_BIGINT),
+                    array($fechaActual, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_DATETIME)
+                );
+            }
+            
+            $stmt = sqlsrv_prepare($conexion, $sql, $params);
+            
+            if (!$stmt) {
+                error_log('Error al preparar la consulta para guardar documento: ' . print_r(sqlsrv_errors(), true));
+                throw new Exception('Error al preparar la consulta para guardar documento: ' . print_r(sqlsrv_errors(), true));
+            }
+            
+            if (!sqlsrv_execute($stmt)) {
+                error_log('Error al guardar información del documento: ' . print_r(sqlsrv_errors(), true));
                 throw new Exception('Error al guardar información del documento: ' . print_r(sqlsrv_errors(), true));
             }
             
@@ -281,6 +169,7 @@ function procesarDocumentos($conexion, $proyectoId) {
             $stmt = sqlsrv_query($conexion, $sql);
             
             if ($stmt === false) {
+                error_log('Error al obtener el ID del documento: ' . print_r(sqlsrv_errors(), true));
                 throw new Exception('Error al obtener el ID del documento: ' . print_r(sqlsrv_errors(), true));
             }
             
@@ -288,46 +177,26 @@ function procesarDocumentos($conexion, $proyectoId) {
             $documentoId = $row['ID'];
             
             // Agregar a la lista de documentos guardados
-            $documentosGuardados[] = array(
+            $documentoGuardado = array(
                 'id' => $documentoId,
                 'nombre' => $nombreOriginal,
                 'ruta' => 'documentos/' . $proyectoId . '/' . $nombreArchivo,
                 'tipo' => $tipoArchivo,
                 'tamano' => $tamanoArchivo
             );
+            
+            // Si se subió a Drive, añadir esa información
+            if ($driveFileId && $driveFileUrl) {
+                $documentoGuardado['driveFileId'] = $driveFileId;
+                $documentoGuardado['driveUrl'] = $driveFileUrl;
+            }
+            
+            $documentosGuardados[] = $documentoGuardado;
+        } else {
+            error_log("Error al mover el archivo de $rutaTemporal a $rutaDestino");
+            throw new Exception("Error al mover el archivo de {$archivo['name']} al directorio de destino");
         }
     }
     
     return $documentosGuardados;
-}
-
-/**
- * Genera una respuesta de éxito en formato JSON
- */
-function responderExito($mensaje, $datos = array()) {
-    $respuesta = array(
-        'exito' => true,
-        'mensaje' => $mensaje
-    );
-    
-    if (!empty($datos)) {
-        $respuesta = array_merge($respuesta, $datos);
-    }
-    
-    echo json_encode($respuesta);
-    exit;
-}
-
-/**
- * Genera una respuesta de error en formato JSON
- */
-function responderError($mensaje, $codigo = 400) {
-    http_response_code($codigo);
-    
-    echo json_encode(array(
-        'exito' => false,
-        'mensaje' => $mensaje
-    ));
-    
-    exit;
 }

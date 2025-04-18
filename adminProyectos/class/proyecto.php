@@ -92,7 +92,7 @@ class Proyecto
             // Verificar si la tabla HistorialProyectos existe
             $this->verificarTablaHistorialProyectos();
             
-            // Generar fecha actual
+            // Generar fecha actual en formato compatible con SQL Server
             $fechaCreacion = date('Y-m-d H:i:s');
             
             // Preparar la consulta SQL para insertar el proyecto
@@ -108,23 +108,29 @@ class Proyecto
                         EtapaProyecto
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
             
+            // Crear parámetros con tipos específicos para evitar conversiones implícitas
             $params = array(
-                $datos['tipo'],
-                $datos['desarrollo'],
-                $datos['solicitante'],
-                $datos['pais'],
-                $datos['sector'],
-                $datos['funcionalidad'],
-                $fechaCreacion,
-                'Pendiente', // Estado inicial
-                'Pendiente'  // Etapa inicial
+                array($datos['tipo'], SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
+                array($datos['desarrollo'], SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
+                array($datos['solicitante'], SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
+                array($datos['pais'], SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
+                array($datos['sector'], SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
+                array($datos['funcionalidad'], SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR('max')),
+                array($fechaCreacion, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_DATETIME),
+                array('Pendiente', SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
+                array('Pendiente', SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255))
             );
             
-            // Ejecutar la consulta
-            $stmt = sqlsrv_query($this->cid_central, $sql, $params);
+            // Usar sqlsrv_prepare para preparar la consulta con los parámetros tipados
+            $stmt = sqlsrv_prepare($this->cid_central, $sql, $params);
             
-            if ($stmt === false) {
-                throw new Exception('Error al insertar el proyecto: ' . print_r(sqlsrv_errors(), true));
+            if (!$stmt) {
+                throw new Exception("Error al preparar la consulta: " . print_r(sqlsrv_errors(), true));
+            }
+            
+            // Ejecutar la consulta preparada
+            if (!sqlsrv_execute($stmt)) {
+                throw new Exception("Error al insertar el proyecto: " . print_r(sqlsrv_errors(), true));
             }
             
             // Obtener el ID del proyecto insertado
@@ -189,9 +195,30 @@ class Proyecto
                 throw new Exception('Error al crear la tabla HistorialProyectos: ' . print_r(sqlsrv_errors(), true));
             }
         } else {
+            // Si la tabla existe, verificamos si necesita ser alterada para corregir tipos
+            $sql = "SELECT DATA_TYPE FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = 'HistorialProyectos' AND COLUMN_NAME = 'FechaCreacion'";
+            $result = sqlsrv_query($this->cid_central, $sql);
+            
+            if ($result === false) {
+                throw new Exception('Error al verificar el tipo de columna FechaCreacion: ' . print_r(sqlsrv_errors(), true));
+            }
+            
+            $row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC);
+            
+            // Si el tipo no es DATETIME, alteramos la tabla
+            if ($row && $row['DATA_TYPE'] !== 'datetime') {
+                $sqlAlter = "ALTER TABLE HistorialProyectos ALTER COLUMN FechaCreacion DATETIME NOT NULL";
+                $resultAlter = sqlsrv_query($this->cid_central, $sqlAlter);
+                
+                if ($resultAlter === false) {
+                    throw new Exception('Error al modificar la columna FechaCreacion: ' . print_r(sqlsrv_errors(), true));
+                }
+            }
+            
             // Verificar si la columna Desarrollo existe, y si no, agregarla
             $sql = "SELECT COUNT(*) AS count FROM INFORMATION_SCHEMA.COLUMNS 
-                   WHERE TABLE_NAME = 'HistorialProyectos' AND COLUMN_NAME = 'Desarrollo'";
+                WHERE TABLE_NAME = 'HistorialProyectos' AND COLUMN_NAME = 'Desarrollo'";
             $result = sqlsrv_query($this->cid_central, $sql);
             
             if ($result === false) {
