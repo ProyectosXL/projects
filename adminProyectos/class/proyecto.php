@@ -34,6 +34,25 @@ class Proyecto
     {
         return $this->cid_central;
     }
+
+    /**
+     * Convierte texto a UTF-8 para asegurar compatibilidad con SQL Server
+     */
+    private function asegurarUTF8($texto) {
+        if (!is_string($texto)) {
+            return $texto;
+        }
+        
+        // Detectar encoding actual
+        $encoding = mb_detect_encoding($texto, 'UTF-8, ISO-8859-1', true);
+        
+        // Convertir a UTF-8 si es necesario
+        if ($encoding !== 'UTF-8') {
+            return mb_convert_encoding($texto, 'UTF-8', $encoding);
+        }
+        
+        return $texto;
+    }
     
     /**
      * Obtiene la lista de solicitantes desde la base de datos
@@ -136,14 +155,25 @@ class Proyecto
             // Obtener el ID del proyecto insertado
             $sql = "SELECT SCOPE_IDENTITY() as ID";
             $stmt = sqlsrv_query($this->cid_central, $sql);
-            
+
             if ($stmt === false) {
-                throw new Exception('Error al obtener el ID del proyecto: ' . print_r(sqlsrv_errors(), true));
+                $sqlErrors = print_r(sqlsrv_errors(), true);
+                error_log("Error al obtener ID del proyecto: $sqlErrors");
+                throw new Exception('Error al obtener el ID del proyecto: ' . $sqlErrors);
             }
-            
+
             $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
             $proyectoId = $row['ID'];
-            
+
+            // Asegurarse de que el ID no sea nulo o vacío
+            if (empty($proyectoId)) {
+                error_log("ID del proyecto está vacío después de SCOPE_IDENTITY()");
+                throw new Exception('No se pudo obtener el ID del proyecto creado');
+            }
+
+            // Registrar el ID obtenido
+            error_log("Proyecto creado con ID: $proyectoId");
+
             return $proyectoId;
             
         } catch (Exception $e) {
@@ -466,6 +496,10 @@ class Proyecto
             if (!$this->cid_central) {
                 throw new Exception("No hay conexión a la base de datos central");
             }
+            
+            // Asegurar que los textos estén en UTF-8
+            $autor = $this->asegurarUTF8($autor);
+            $comentario = $this->asegurarUTF8($comentario);
             
             // Obtener la fecha actual en formato ANSI SQL
             $fechaActual = date('Y-m-d H:i:s');

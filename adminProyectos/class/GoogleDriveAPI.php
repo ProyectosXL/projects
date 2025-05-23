@@ -4,17 +4,14 @@
  * Clase para gestionar la integración con Google Drive
  */
 class GoogleDriveAPI {
-    // Credenciales de acceso
-    private $clientId;
-    private $clientSecret;
-    private $redirectUri;
-    private $refreshToken;
-    
-    // Cliente de Google
+    // Cliente y servicio
     private $client;
-    
-    // Servicio de Google Drive
     private $service;
+    
+    // Credenciales
+    private $clientId = '426890158878-qlk4dsktcsnc6odt9e8rbupqpskhmtsk.apps.googleusercontent.com';
+    private $clientSecret = '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';
+    private $redirectUri = 'http://app.xl.com.ar:8080/projects/adminProyectos/tools/configureGoogleDrive.php';
     
     // IDs de carpetas principales
     private $mainFolderId = null;
@@ -24,20 +21,7 @@ class GoogleDriveAPI {
      * Constructor
      */
     public function __construct() {
-        // Cargar configuración
-        $this->loadConfig();
-        
-        // Inicializar cliente de Google
         $this->initGoogleClient();
-    }
-    
-    /**
-     * Carga la configuración de credenciales
-     */
-        $this->clientId = '426890158878-qlk4dsktcsnc6odt9e8rbupqpskhmtsk.apps.googleusercontent.com';
-        $this->clientSecret = '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';
-        $this->redirectUri = 'http://app.xl.com.ar:8080/projects/adminProyectos/tools/configureGoogleDrive.php'; // Por ejemplo, https://www.tudominio.com/auth_callback.php
-        $this->refreshToken = '1//0hk1Jl9EkV28RCgYIARAAGBESNwF-L9IrBse04PsD1lNddzX8uL_jlpGZrGSYGLsJ62_1g1rzJ80VO5aLzRZazyJstXJSqB1FGAQ';
     }
     
     /**
@@ -45,26 +29,25 @@ class GoogleDriveAPI {
      */
     private function initGoogleClient() {
         try {
-            require_once __DIR__ . '/../vendor/autoload.php'; // Ruta a la autoload de Composer
+            require_once __DIR__ . '/../vendor/autoload.php';
             
             // Crear cliente
-            $this->client = new Google_Client();
+            $this->client = new Google\Client();
             $this->client->setClientId($this->clientId);
             $this->client->setClientSecret($this->clientSecret);
             $this->client->setRedirectUri($this->redirectUri);
-            $this->client->setAccessType('offline');
-            $this->client->setApprovalPrompt('force');
-            $this->client->setScopes(['https://www.googleapis.com/auth/drive']);
             
-            // Configurar token de actualización
-            $this->client->setRefreshToken($this->refreshToken);
+            // Usar el token completo generado
+            $token = json_decode('{"access_token":"ya29.a0AZYkNZg26IwEYt3-t2_u7UFj6G-NLu2-NARFLHFct5j6f2tgxwNnVNOgHTsSdKlOnO7jAC0xop4QQUNd64X9YbJTiV3IXuxEPC0E0K6FKyQTxS8YohHm7ScLdDGn_0nGfPgmSBNPrbl8mONLjdDa9VVbM5uQviOKCJN14TzZaCgYKAYMSARISFQHGX2MiKR3Gyc7N_pVpFgsl3DFkNg0175","expires_in":3599,"refresh_token":"1\/\/0hGTJZywKniwzCgYIARAAGBESNwF-L9IrZY72ICDiooqjQQOWydGo2_IUGuvqFkkUtneOHQMQIqhhoW7xZf4Qw31_XwRsdyb292s","scope":"https:\/\/www.googleapis.com\/auth\/drive","token_type":"Bearer","created":1744948668}', true);
+            $this->client->setAccessToken($token);
             
-            // Refrescar token de acceso
-            $accessToken = $this->client->fetchAccessTokenWithRefreshToken();
-            $this->client->setAccessToken($accessToken);
+            // Refrescar token si es necesario
+            if ($this->client->isAccessTokenExpired()) {
+                $this->client->fetchAccessTokenWithRefreshToken($token['refresh_token']);
+            }
             
             // Crear servicio de Google Drive
-            $this->service = new Google_Service_Drive($this->client);
+            $this->service = new Google\Service\Drive($this->client);
             
         } catch (Exception $e) {
             throw new Exception('Error al iniciar el cliente de Google API: ' . $e->getMessage());
@@ -131,7 +114,7 @@ class GoogleDriveAPI {
             }
             
             // Crear metadatos del archivo
-            $fileMetadata = new Google_Service_Drive_DriveFile([
+            $fileMetadata = new Google\Service\Drive\DriveFile([
                 'name' => $fileName,
             ]);
             
@@ -140,17 +123,22 @@ class GoogleDriveAPI {
                 $fileMetadata->setParents([$folderId]);
             }
             
-            // Subir archivo
+            // Leer contenido del archivo
             $content = file_get_contents($filePath);
-            $file = $this->service->files->create($fileMetadata, [
+            
+            // Crear opciones para la subida
+            $options = [
                 'data' => $content,
                 'mimeType' => $mimeType,
                 'uploadType' => 'multipart',
                 'fields' => 'id,name,webViewLink'
-            ]);
+            ];
+            
+            // Subir archivo
+            $file = $this->service->files->create($fileMetadata, $options);
             
             // Configurar permisos (hacerlo accesible vía enlace)
-            $permission = new Google_Service_Drive_Permission([
+            $permission = new Google\Service\Drive\Permission([
                 'type' => 'anyone',
                 'role' => 'reader'
             ]);
@@ -179,7 +167,7 @@ class GoogleDriveAPI {
     public function createFolder($folderName, $parentFolderId = null) {
         try {
             // Metadatos de la carpeta
-            $folderMetadata = new Google_Service_Drive_DriveFile([
+            $folderMetadata = new Google\Service\Drive\DriveFile([
                 'name' => $folderName,
                 'mimeType' => 'application/vnd.google-apps.folder'
             ]);
@@ -259,3 +247,4 @@ class GoogleDriveAPI {
             throw new Exception('Error al obtener o crear carpeta en Google Drive: ' . $e->getMessage());
         }
     }
+}

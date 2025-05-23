@@ -102,7 +102,10 @@ function cargarSolicitantes() {
  */
 function configurarEventos() {
     // Botón para agregar documento
-    $('#btnAgregarDocumento').on('click', agregarDocumento);
+    $('#btnAgregarDocumento').on('click', function() {
+        console.log("Botón Agregar Documento clickeado");
+        agregarDocumento();
+    });
     
     // Manejar el envío del formulario
     $('#formProyecto').on('submit', function(e) {
@@ -111,7 +114,10 @@ function configurarEventos() {
     });
     
     // Botón de confirmación en el modal
-    $('#btnConfirmarGuardar').on('click', guardarProyecto);
+    $('#btnConfirmarGuardar').on('click', function() {
+        console.log("Botón Confirmar Guardar clickeado");
+        guardarProyecto();
+    });
 }
 
 /**
@@ -126,6 +132,9 @@ function agregarDocumento() {
     }
     
     const file = input.files[0];
+    
+    // Agregar log para confirmar que se recibió un archivo
+    console.log("Archivo seleccionado:", file.name, file.type, file.size);
     
     // Validar tipo de archivo
     const tiposPermitidos = [
@@ -158,6 +167,9 @@ function agregarDocumento() {
         tipo: file.type,
         tamano: formatearTamano(file.size)
     });
+    
+    console.log("Documento agregado. Total documentos:", documentos.length);
+    console.log("Lista actual de documentos:", documentos);
     
     // Actualizar vista
     actualizarVistaDocumentos();
@@ -253,13 +265,33 @@ function guardarProyecto() {
     // Crear FormData con los datos del formulario
     const formData = new FormData(form);
     
-    // Agregar documentos
-    documentos.forEach((doc, index) => {
-        formData.append(`documento_${index}`, doc.file);
-    });
+    // Depuración - Verificar que hay documentos para enviar
+    console.log("Documentos para enviar:", documentos);
+    console.log("Número de documentos:", documentos.length);
     
-    // Indicar cuántos documentos se envían
-    formData.append('num_documentos', documentos.length);
+    // Agregar documentos de manera explícita
+    if (documentos.length > 0) {
+        documentos.forEach((doc, index) => {
+            console.log(`Agregando documento ${index}:`, doc.nombre);
+            formData.append(`documento_${index}`, doc.file);
+        });
+        
+        // Agregar explícitamente el número de documentos
+        formData.append('num_documentos', String(documentos.length));
+    } else {
+        // Si no hay documentos, asegurarse de que se envía 0
+        formData.append('num_documentos', '0');
+    }
+    
+    // Depuración - Verificar el contenido del FormData
+    console.log("Contenido del FormData:");
+    for (let [key, value] of formData.entries()) {
+        if (value instanceof File) {
+            console.log(key, "File:", value.name, value.size, value.type);
+        } else {
+            console.log(key, value);
+        }
+    }
     
     // Enviar datos al servidor
     $.ajax({
@@ -275,34 +307,42 @@ function guardarProyecto() {
         },
         success: function(response) {
             // Cerrar el modal
-            bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+            const modal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
+            if (modal) modal.hide();
             
             try {
+                // Asegurarse de que la respuesta es un objeto (puede llegar como string)
                 const data = typeof response === 'string' ? JSON.parse(response) : response;
                 
                 if (data.exito) {
                     // Mostrar mensaje de éxito
                     mostrarExito(data.mensaje || 'Proyecto guardado correctamente');
+                    console.log("Respuesta completa:", data);
                     
-                    // Limpiar formulario y recargar después de 2 segundos
-                    setTimeout(() => {
-                        window.location.reload(); // Recargar toda la página
-                    }, 2000);
+                    // NO recargar automáticamente para poder ver la consola
+                    console.log("Proyecto guardado correctamente. NO se recargará la página automáticamente para permitir depuración.");
+                    
+                    // Puedes agregar un botón para recargar manualmente
+                    mostrarExito(data.mensaje + ' <button class="btn btn-sm btn-outline-success ms-2" onclick="location.reload()">Recargar página</button>');
                 } else {
                     mostrarError(data.mensaje || 'Error al guardar el proyecto');
+                    console.error("Error del servidor:", data);
                 }
             } catch (e) {
                 console.error('Error al procesar la respuesta:', e);
-                mostrarError('Error al procesar la respuesta del servidor');
+                console.log('Respuesta recibida (cruda):', response);
+                mostrarError('Error al procesar la respuesta del servidor: ' + e.message);
             }
         },
         error: function(xhr, status, error) {
             // Cerrar el modal
-            bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+            const modal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
+            if (modal) modal.hide();
             
             // Mostrar error
+            console.error('Error en la petición AJAX:', error);
+            console.error('Detalles del error:', xhr.responseText);
             mostrarError('Error al guardar el proyecto: ' + error);
-            console.error('Error en la petición:', xhr.responseText);
         },
         complete: function() {
             // Quitar indicador de carga
