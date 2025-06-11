@@ -2,7 +2,7 @@
 /**
  * detalleProyectoDocumentos.js
  * JavaScript para manejo de documentos en detalle de proyecto
- * Controla la carga, visualización y gestión de documentos
+ * Controla la carga, visualización y gestión de documentos (solo almacenamiento local)
  */
 
 const DetalleProyectoDocumentos = {
@@ -45,7 +45,7 @@ const DetalleProyectoDocumentos = {
             });
         }
         
-        // Configuración de la zona de arrastrar y soltar (simulado)
+        // Configuración de la zona de arrastrar y soltar
         const dropzone = document.getElementById('dropzone');
         if (dropzone) {
             // Eventos para simular la funcionalidad de arrastrar y soltar
@@ -73,14 +73,13 @@ const DetalleProyectoDocumentos = {
                 }, false);
             });
             
-            // Manejar archivos soltados (simulado)
+            // Manejar archivos soltados
             dropzone.addEventListener('drop', function(e) {
                 const dt = e.dataTransfer;
                 const files = dt.files;
                 
-                // Simular subida
                 if (files.length > 0) {
-                    self.simularSubidaArchivo(files[0]);
+                    self.procesarArchivo(files[0]);
                 }
             }, false);
             
@@ -92,7 +91,7 @@ const DetalleProyectoDocumentos = {
                 
                 fileInput.addEventListener('change', function(e) {
                     if (e.target.files.length > 0) {
-                        self.simularSubidaArchivo(e.target.files[0]);
+                        self.procesarArchivo(e.target.files[0]);
                     }
                 });
                 
@@ -118,7 +117,7 @@ const DetalleProyectoDocumentos = {
     },
     
     cargarDocumentos: function() {
-        // Intentar obtener de la API
+        // Obtener de la API
         fetch(`api/detalleProyecto.php?id=${this.proyectoId}&accion=documentos`)
             .then(response => {
                 if (!response.ok) {
@@ -130,8 +129,6 @@ const DetalleProyectoDocumentos = {
                 if (data.exito) {
                     this.documentos = data.documentos;
                     this.actualizarVistaDocumentos();
-                    
-                    // Notificar cantidad de documentos
                     this.notificarCantidadDocumentos();
                 } else {
                     throw new Error(data.error || 'Error desconocido');
@@ -141,18 +138,8 @@ const DetalleProyectoDocumentos = {
                 console.error('Error:', error);
                 DetalleProyectoUI.mostrarNotificacion('No se pudieron cargar los documentos', 'error');
                 
-                // SOLUCIÓN TEMPORAL: Mostrar documentos de muestra para evitar que la pestaña quede cargando
-                this.documentos = [
-                    {
-                        id: 1,
-                        nombre: "Documento de ejemplo.pdf",
-                        tipo: "application/pdf",
-                        tamano: "1.2 MB",
-                        fecha: "2023-04-17",
-                        usuario: "Admin",
-                        url: "#"
-                    }
-                ];
+                // Mostrar tabla vacía
+                this.documentos = [];
                 this.actualizarVistaDocumentos();
                 this.notificarCantidadDocumentos();
             });
@@ -212,7 +199,6 @@ const DetalleProyectoDocumentos = {
     
     // Notifica la cantidad de documentos disponibles
     notificarCantidadDocumentos: function() {
-        // Crear y disparar un evento personalizado
         const evento = new CustomEvent('documentosActualizados', {
             detail: {
                 cantidad: this.documentos.length
@@ -222,8 +208,8 @@ const DetalleProyectoDocumentos = {
         document.dispatchEvent(evento);
     },
     
-    // Simula la subida de un archivo
-    simularSubidaArchivo: function(file) {
+    // Procesa un archivo para subirlo al servidor
+    procesarArchivo: function(file) {
         // Verificar tamaño máximo (10MB)
         if (file.size > 10 * 1024 * 1024) {
             DetalleProyectoUI.mostrarNotificacion('El archivo es demasiado grande. El tamaño máximo permitido es 10MB.', 'warning');
@@ -247,7 +233,11 @@ const DetalleProyectoDocumentos = {
             return;
         }
         
-        // Simular proceso de subida
+        this.subirArchivo(file);
+    },
+    
+    // Sube el archivo al servidor
+    subirArchivo: function(file) {
         const dropzoneContainer = document.getElementById('dropzone-container');
         const dropzone = document.getElementById('dropzone');
         
@@ -263,52 +253,54 @@ const DetalleProyectoDocumentos = {
             </div>
         `;
         
-        // Simular progreso
-        let progreso = 0;
-        const intervalo = setInterval(() => {
-            progreso += 5;
-            document.querySelector('.progress-bar').style.width = `${progreso}%`;
-            
-            if (progreso >= 100) {
-                clearInterval(intervalo);
+        // Crear FormData para enviar el archivo
+        const formData = new FormData();
+        formData.append('documento_0', file);
+        formData.append('num_documentos', 1);
+        formData.append('proyecto_id', this.proyectoId);
+        
+        // Hacer petición AJAX
+        fetch('api/subirDocumento.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.exito) {
+                // Recargar lista de documentos
+                this.cargarDocumentos();
                 
-                // Simular finalización exitosa
-                setTimeout(() => {
-                    // Agregar documento a la lista
-                    const nuevoDoc = {
-                        id: this.documentos.length + 1,
-                        nombre: file.name,
-                        tipo: file.type,
-                        tamano: DetalleProyectoUI.formatearTamano(file.size),
-                        fecha: new Date().toISOString().split('T')[0],
-                        usuario: 'Usuario Actual', // Aquí se usaría el usuario logueado
-                        url: '#'
-                    };
-                    
-                    this.documentos.push(nuevoDoc);
-                    this.actualizarVistaDocumentos();
-                    
-                    // Notificar la nueva cantidad de documentos
-                    this.notificarCantidadDocumentos();
-                    
-                    // Ocultar zona de subida y mostrar botón
-                    dropzoneContainer.classList.add('d-none');
-                    document.getElementById('btnSubirDocumento').classList.remove('d-none');
-                    
-                    // Restaurar zona de subida
-                    dropzone.innerHTML = `
-                        <div class="dz-message">
-                            <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
-                            <h5>Arrastra archivos aquí o haz clic para seleccionar</h5>
-                            <p class="text-muted">Tipos permitidos: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, ZIP (Max. 10MB)</p>
-                        </div>
-                    `;
-                    
-                    // Mostrar mensaje de éxito
-                    DetalleProyectoUI.mostrarNotificacion('Archivo subido correctamente', 'success');
-                }, 1000);
+                // Ocultar zona de subida y mostrar botón
+                dropzoneContainer.classList.add('d-none');
+                document.getElementById('btnSubirDocumento').classList.remove('d-none');
+                
+                // Restaurar zona de subida
+                this.restaurarDropzone();
+                
+                DetalleProyectoUI.mostrarNotificacion('Archivo subido correctamente', 'success');
+            } else {
+                throw new Error(data.mensaje || 'Error al subir archivo');
             }
-        }, 100);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            DetalleProyectoUI.mostrarNotificacion('Error al subir el archivo: ' + error.message, 'error');
+            
+            // Restaurar zona de subida en caso de error
+            this.restaurarDropzone();
+        });
+    },
+    
+    // Restaura la zona de dropzone a su estado original
+    restaurarDropzone: function() {
+        const dropzone = document.getElementById('dropzone');
+        dropzone.innerHTML = `
+            <div class="dz-message">
+                <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
+                <h5>Arrastra archivos aquí o haz clic para seleccionar</h5>
+                <p class="text-muted">Tipos permitidos: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, ZIP (Max. 10MB)</p>
+            </div>
+        `;
     },
     
     // Mostrar confirmación para eliminar documento
@@ -333,17 +325,24 @@ const DetalleProyectoDocumentos = {
     eliminarDocumento: function() {
         if (!this.documentoSeleccionado) return;
         
-        // Eliminar documento de la lista
-        this.documentos = this.documentos.filter(doc => doc.id !== this.documentoSeleccionado.id);
-        
-        // Actualizar vista
-        this.actualizarVistaDocumentos();
-        
-        // Notificar la nueva cantidad de documentos
-        this.notificarCantidadDocumentos();
-        
-        // Mostrar mensaje
-        DetalleProyectoUI.mostrarNotificacion('Documento eliminado correctamente', 'success');
+        // Hacer petición para eliminar del servidor
+        fetch(`api/eliminarDocumento.php?id=${this.documentoSeleccionado.id}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.exito) {
+                // Recargar lista de documentos
+                this.cargarDocumentos();
+                DetalleProyectoUI.mostrarNotificacion('Documento eliminado correctamente', 'success');
+            } else {
+                throw new Error(data.mensaje || 'Error al eliminar documento');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            DetalleProyectoUI.mostrarNotificacion('Error al eliminar el documento: ' + error.message, 'error');
+        });
         
         // Limpiar referencia
         this.documentoSeleccionado = null;
@@ -360,12 +359,18 @@ const DetalleProyectoDocumentos = {
         const visorContenido = document.getElementById('visorContenido');
         const btnDescargar = document.getElementById('btnDescargarDocumento');
         
-        // Simulamos contenido según el tipo
+        // Simular contenido según el tipo
         if (documento.tipo.startsWith('image/')) {
             // Es una imagen
             visorContenido.innerHTML = `
                 <div class="text-center py-3">
-                    <img src="https://via.placeholder.com/1200x800" alt="${documento.nombre}" class="img-fluid">
+                    <img src="${documento.url}" alt="${documento.nombre}" class="img-fluid" 
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <div style="display:none;" class="py-5 bg-light">
+                        <i class="fas fa-image fa-5x text-info mb-3"></i>
+                        <h4>No se puede mostrar la imagen</h4>
+                        <p>Descargue el archivo para visualizarlo</p>
+                    </div>
                 </div>
             `;
         } else if (documento.tipo === 'application/pdf') {
@@ -404,17 +409,15 @@ const DetalleProyectoDocumentos = {
         
         if (!documento) return;
         
-        // En una implementación real, aquí se redigiría a la descarga
-        // Para la simulación, mostramos un mensaje
-        DetalleProyectoUI.mostrarNotificacion('Descarga iniciada...', 'info');
-        
-        // Simular una descarga creando un enlace temporal
+        // Crear enlace temporal para descarga
         const link = document.createElement('a');
-        link.href = 'https://example.com/archivo-simulado';
+        link.href = documento.url;
         link.download = documento.nombre;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        
+        DetalleProyectoUI.mostrarNotificacion('Descarga iniciada...', 'info');
     },
     
     // Devuelve el tipo de documento formateado

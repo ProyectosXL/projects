@@ -65,7 +65,7 @@ class Proyecto
             $sql = "SELECT L.NRO_LEGAJO, L.NOMBRE, L.APELLIDO  
                 FROM [TANGO-SUELDOS].LAKERS_CORP_SA.DBO.RO_V_LEGAJO L           
                 WHERE L.DESC_DEPARTAMENTO IN ('ADMINISTRACION','COMERCIALIZACION','LOGISTICA')
-                ORDER BY L.APELLIDO, L.NOMBRE";
+                ORDER BY L.NOMBRE, L.APELLIDO";
             
             // Ejecutar consulta
             $result = sqlsrv_query($this->cid_central, $sql);

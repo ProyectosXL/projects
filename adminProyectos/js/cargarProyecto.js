@@ -1,10 +1,8 @@
 
 /**
  * Funcionalidad JavaScript para el formulario de carga de proyectos
+ * Con Select2 y campo de prioridad
  */
-
-// Almacenar los documentos adjuntos
-const documentos = [];
 
 $(document).ready(function() {
     // Inicializar Select2
@@ -15,33 +13,22 @@ $(document).ready(function() {
     
     // Configurar eventos
     configurarEventos();
+    
+    console.log('Formulario de carga inicializado con Select2');
 });
 
 /**
- * Inicializa los componentes Select2
+ * Inicializa Select2 en todos los selects
  */
 function inicializarSelect2() {
-    // Configuración general para todos los selects
     $('.select2').select2({
         theme: 'bootstrap-5',
         width: '100%',
-        placeholder: 'Seleccione una opción',
+        placeholder: function() {
+            return $(this).data('placeholder') || 'Seleccione una opción';
+        },
         allowClear: true,
-        dropdownParent: $('body') // Esto asegura que el dropdown se agregue al body
-    });
-    
-    // Configuración especial para el select de solicitante con búsqueda
-    $('#solicitante').select2({
-        theme: 'bootstrap-5',
-        width: '100%',
-        placeholder: 'Buscar solicitante...',
-        allowClear: true,
-        minimumInputLength: 2,
-        dropdownParent: $('body'), // Esto asegura que el dropdown se agregue al body
         language: {
-            inputTooShort: function() {
-                return "Ingrese al menos 2 caracteres para buscar";
-            },
             noResults: function() {
                 return "No se encontraron resultados";
             },
@@ -51,14 +38,30 @@ function inicializarSelect2() {
         }
     });
 
-    // Establecer z-index alto para los dropdowns de Select2
-    $('.select2-dropdown').css('z-index', 9999);
+    // Configuración específica para el campo de solicitante con búsqueda
+    $('#solicitante').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Buscar solicitante...',
+        allowClear: true,
+        minimumInputLength: 0,
+        language: {
+            noResults: function() {
+                return "No se encontraron resultados";
+            },
+            searching: function() {
+                return "Buscando...";
+            }
+        }
+    });
 }
 
 /**
  * Carga los solicitantes desde la API
  */
 function cargarSolicitantes() {
+    console.log('Cargando solicitantes...');
+    
     $.ajax({
         url: 'api/cargarProyecto.php',
         type: 'GET',
@@ -66,30 +69,77 @@ function cargarSolicitantes() {
         dataType: 'json',
         beforeSend: function() {
             $('#solicitante').prop('disabled', true);
+            // Destruir Select2 temporalmente para cambiar las opciones
+            $('#solicitante').select2('destroy');
+            $('#solicitante').html('<option value="">Cargando solicitantes...</option>');
+            $('#solicitante').select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Cargando...',
+                allowClear: true
+            });
         },
         success: function(response) {
+            console.log('Respuesta recibida:', response);
+            
             if (response.exito) {
+                // Destruir Select2 para actualizar opciones
+                $('#solicitante').select2('destroy');
+                
                 // Limpiar opciones actuales
                 $('#solicitante').empty().append('<option value="">Seleccione solicitante</option>');
                 
                 // Agregar opciones desde la respuesta
-                $.each(response.solicitantes, function(index, solicitante) {
-                    // Usamos el nombre formateado como valor en lugar del número de legajo
-                    $('#solicitante').append(new Option(
-                        solicitante.APELLIDO_Y_NOMBRE,
-                        solicitante.NOMBRE_FORMATEADO
-                    ));
+                if (response.solicitantes && Array.isArray(response.solicitantes)) {
+                    $.each(response.solicitantes, function(index, solicitante) {
+                        $('#solicitante').append(new Option(
+                            solicitante.APELLIDO_Y_NOMBRE,
+                            solicitante.NOMBRE_FORMATEADO
+                        ));
+                    });
+                    console.log('Solicitantes cargados:', response.solicitantes.length);
+                } else {
+                    console.warn('No se encontraron solicitantes en la respuesta');
+                    $('#solicitante').append('<option value="">No hay solicitantes disponibles</option>');
+                }
+                
+                // Reinicializar Select2
+                $('#solicitante').select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: 'Buscar solicitante...',
+                    allowClear: true,
+                    minimumInputLength: 0
                 });
                 
-                // Actualizar Select2
-                $('#solicitante').trigger('change');
             } else {
-                mostrarError('Error al cargar solicitantes: ' + response.mensaje);
+                mostrarError('Error al cargar solicitantes: ' + (response.mensaje || 'Error desconocido'));
+                $('#solicitante').select2('destroy');
+                $('#solicitante').html('<option value="">Error al cargar solicitantes</option>');
+                $('#solicitante').select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: 'Error...',
+                    allowClear: true
+                });
             }
         },
         error: function(xhr, status, error) {
+            console.error('Error AJAX:', {
+                status: status,
+                error: error,
+                responseText: xhr.responseText
+            });
+            
             mostrarError('Error al cargar solicitantes: ' + error);
-            console.error('Error en la petición:', xhr.responseText);
+            $('#solicitante').select2('destroy');
+            $('#solicitante').html('<option value="">Error al cargar solicitantes</option>');
+            $('#solicitante').select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Error...',
+                allowClear: true
+            });
         },
         complete: function() {
             $('#solicitante').prop('disabled', false);
@@ -101,12 +151,6 @@ function cargarSolicitantes() {
  * Configura todos los eventos del formulario
  */
 function configurarEventos() {
-    // Botón para agregar documento
-    $('#btnAgregarDocumento').on('click', function() {
-        console.log("Botón Agregar Documento clickeado");
-        agregarDocumento();
-    });
-    
     // Manejar el envío del formulario
     $('#formProyecto').on('submit', function(e) {
         e.preventDefault();
@@ -114,240 +158,220 @@ function configurarEventos() {
     });
     
     // Botón de confirmación en el modal
-    $('#btnConfirmarGuardar').on('click', function() {
-        console.log("Botón Confirmar Guardar clickeado");
-        guardarProyecto();
+    $('#btnConfirmarGuardar').on('click', guardarProyecto);
+    
+    // Validaciones en tiempo real
+    $('#desarrollo').on('input', function() {
+        validarCampoRequerido($(this), 'El nombre del proyecto es requerido');
+    });
+    
+    $('#tipo').on('select2:select select2:unselect', function() {
+        validarSelect2($(this), 'Debe seleccionar un tipo de presentación');
+    });
+    
+    $('#solicitante').on('select2:select select2:unselect', function() {
+        validarSelect2($(this), 'Debe seleccionar un solicitante');
+    });
+    
+    $('#prioridad').on('select2:select select2:unselect', function() {
+        validarSelect2($(this), 'Debe seleccionar una prioridad');
+    });
+    
+    $('#pais').on('select2:select select2:unselect', function() {
+        validarSelect2($(this), 'Debe seleccionar un país');
+    });
+    
+    $('#sector').on('select2:select select2:unselect', function() {
+        validarSelect2($(this), 'Debe seleccionar un sector');
+    });
+    
+    $('#funcionalidad').on('input', function() {
+        validarCampoRequerido($(this), 'La funcionalidad es requerida');
     });
 }
 
 /**
- * Agrega un documento al listado
+ * Función para validar campos requeridos
  */
-function agregarDocumento() {
-    const input = document.getElementById('documentoInput');
+function validarCampoRequerido($campo, mensaje) {
+    const valor = $campo.val() ? $campo.val().trim() : '';
+    const fieldId = $campo.attr('id');
     
-    if (!input.files || input.files.length === 0) {
-        mostrarError('Por favor, seleccione un archivo');
-        return;
-    }
-    
-    const file = input.files[0];
-    
-    // Agregar log para confirmar que se recibió un archivo
-    console.log("Archivo seleccionado:", file.name, file.type, file.size);
-    
-    // Validar tipo de archivo
-    const tiposPermitidos = [
-        'application/pdf', 
-        'application/msword', 
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ];
-    
-    if (!tiposPermitidos.includes(file.type)) {
-        mostrarError('Tipo de archivo no permitido. Solo se aceptan PDF, Word y Excel.');
-        return;
-    }
-    
-    // Validar tamaño (5MB máximo)
-    if (file.size > 5 * 1024 * 1024) {
-        mostrarError('El archivo es demasiado grande. El tamaño máximo es 5MB.');
-        return;
-    }
-    
-    // Generar un ID único para este documento
-    const docId = 'doc_' + Date.now();
-    
-    // Almacenar datos del documento
-    documentos.push({
-        id: docId,
-        file: file,
-        nombre: file.name,
-        tipo: file.type,
-        tamano: formatearTamano(file.size)
-    });
-    
-    console.log("Documento agregado. Total documentos:", documentos.length);
-    console.log("Lista actual de documentos:", documentos);
-    
-    // Actualizar vista
-    actualizarVistaDocumentos();
-    
-    // Limpiar input
-    input.value = '';
-}
-
-/**
- * Actualiza la vista de documentos
- */
-function actualizarVistaDocumentos() {
-    const container = document.getElementById('documentosContainer');
-    container.innerHTML = '';
-    
-    if (documentos.length === 0) {
-        return;
-    }
-    
-    documentos.forEach(doc => {
-        // Determinar icono según tipo
-        let iconoClase = 'bi bi-file-earmark';
-        let iconoColor = '';
-        
-        if (doc.tipo === 'application/pdf') {
-            iconoClase = 'bi bi-file-earmark-pdf-fill';
-            iconoColor = 'pdf-icon';
-        } else if (doc.tipo.includes('word')) {
-            iconoClase = 'bi bi-file-earmark-word-fill';
-            iconoColor = 'word-icon';
-        } else if (doc.tipo.includes('excel')) {
-            iconoClase = 'bi bi-file-earmark-excel-fill';
-            iconoColor = 'excel-icon';
+    if (!valor) {
+        $campo.addClass('is-invalid');
+        if ($('#' + fieldId + '-error-msg').length === 0) {
+            $('<div id="' + fieldId + '-error-msg" class="invalid-feedback">' + mensaje + '</div>')
+                .insertAfter($campo);
         }
-        
-        const docElement = document.createElement('div');
-        docElement.className = 'documento-item';
-        docElement.innerHTML = `
-            <div class="documento-icon ${iconoColor}">
-                <i class="${iconoClase}"></i>
-            </div>
-            <div class="documento-info">
-                <p class="documento-nombre">${doc.nombre}</p>
-                <p class="documento-tamano">${doc.tamano}</p>
-            </div>
-            <div class="documento-acciones">
-                <button type="button" class="btn btn-outline-danger" onclick="eliminarDocumento('${doc.id}')">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>
-        `;
-        
-        container.appendChild(docElement);
-    });
+        return false;
+    } else {
+        $campo.removeClass('is-invalid');
+        $('#' + fieldId + '-error-msg').remove();
+        return true;
+    }
 }
 
 /**
- * Elimina un documento del listado
+ * Función para validar campos Select2
  */
-function eliminarDocumento(docId) {
-    const index = documentos.findIndex(doc => doc.id === docId);
-    if (index !== -1) {
-        documentos.splice(index, 1);
-        actualizarVistaDocumentos();
+function validarSelect2($campo, mensaje) {
+    const valor = $campo.val();
+    const fieldId = $campo.attr('id');
+    
+    if (!valor || valor === '') {
+        $campo.addClass('is-invalid');
+        $campo.next('.select2').find('.select2-selection').addClass('is-invalid');
+        
+        if ($('#' + fieldId + '-error-msg').length === 0) {
+            $('<div id="' + fieldId + '-error-msg" class="invalid-feedback">' + mensaje + '</div>')
+                .insertAfter($campo.next('.select2'));
+        }
+        return false;
+    } else {
+        $campo.removeClass('is-invalid');
+        $campo.next('.select2').find('.select2-selection').removeClass('is-invalid');
+        $('#' + fieldId + '-error-msg').remove();
+        return true;
     }
+}
+
+/**
+ * Valida todo el formulario
+ */
+function validarFormulario() {
+    let esValido = true;
+    
+    // Validar cada campo requerido
+    if (!validarCampoRequerido($('#desarrollo'), 'El nombre del proyecto es requerido')) {
+        esValido = false;
+    }
+    
+    if (!validarSelect2($('#tipo'), 'Debe seleccionar un tipo de presentación')) {
+        esValido = false;
+    }
+    
+    if (!validarSelect2($('#solicitante'), 'Debe seleccionar un solicitante')) {
+        esValido = false;
+    }
+    
+    if (!validarSelect2($('#prioridad'), 'Debe seleccionar una prioridad')) {
+        esValido = false;
+    }
+    
+    if (!validarSelect2($('#pais'), 'Debe seleccionar un país')) {
+        esValido = false;
+    }
+    
+    if (!validarSelect2($('#sector'), 'Debe seleccionar un sector')) {
+        esValido = false;
+    }
+    
+    if (!validarCampoRequerido($('#funcionalidad'), 'La funcionalidad es requerida')) {
+        esValido = false;
+    }
+    
+    return esValido;
 }
 
 /**
  * Muestra el modal de confirmación
  */
 function mostrarConfirmacion() {
-    // Cerrar todos los dropdowns de Select2 antes de mostrar el modal
-    $('.select2-hidden-accessible').select2('close');
+    // Validar formulario antes de mostrar confirmación
+    if (!validarFormulario()) {
+        // Scroll al primer campo con error
+        $('html, body').animate({
+            scrollTop: $('.is-invalid').first().offset().top - 100
+        }, 500);
+        return;
+    }
     
-    // Mostrar el modal con un pequeño retraso para evitar conflictos
-    setTimeout(function() {
-        const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
-        modal.show();
-    }, 100);
+    const modal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    modal.show();
 }
 
 /**
  * Guarda el proyecto en la base de datos
  */
 function guardarProyecto() {
-    // Validar el formulario
-    const form = document.getElementById('formProyecto');
-    if (!form.checkValidity()) {
-        form.reportValidity();
+    // Validar el formulario una vez más
+    if (!validarFormulario()) {
+        bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
         return;
     }
     
-    // Crear FormData con los datos del formulario
-    const formData = new FormData(form);
+    // Recopilar datos del formulario
+    const datosProyecto = {
+        tipo: $('#tipo').val(),
+        desarrollo: $('#desarrollo').val(),
+        solicitante: $('#solicitante').val(),
+        prioridad: $('#prioridad').val(),
+        pais: $('#pais').val(),
+        sector: $('#sector').val(),
+        funcionalidad: $('#funcionalidad').val()
+    };
     
-    // Depuración - Verificar que hay documentos para enviar
-    console.log("Documentos para enviar:", documentos);
-    console.log("Número de documentos:", documentos.length);
-    
-    // Agregar documentos de manera explícita
-    if (documentos.length > 0) {
-        documentos.forEach((doc, index) => {
-            console.log(`Agregando documento ${index}:`, doc.nombre);
-            formData.append(`documento_${index}`, doc.file);
-        });
-        
-        // Agregar explícitamente el número de documentos
-        formData.append('num_documentos', String(documentos.length));
-    } else {
-        // Si no hay documentos, asegurarse de que se envía 0
-        formData.append('num_documentos', '0');
-    }
-    
-    // Depuración - Verificar el contenido del FormData
-    console.log("Contenido del FormData:");
-    for (let [key, value] of formData.entries()) {
-        if (value instanceof File) {
-            console.log(key, "File:", value.name, value.size, value.type);
-        } else {
-            console.log(key, value);
-        }
-    }
+    console.log('Enviando datos:', datosProyecto);
     
     // Enviar datos al servidor
     $.ajax({
         url: 'api/cargarProyecto.php',
         type: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
+        data: {
+            accion: 'guardarProyecto',
+            ...datosProyecto
+        },
+        dataType: 'json',
         beforeSend: function() {
             // Mostrar indicador de carga
-            $('#formProyecto').addClass('loading');
-            $('#btnConfirmarGuardar').prop('disabled', true).html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Guardando...');
+            $('#btnConfirmarGuardar')
+                .prop('disabled', true)
+                .html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Guardando...');
         },
         success: function(response) {
-            // Cerrar el modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
-            if (modal) modal.hide();
+            console.log('Respuesta del servidor:', response);
             
-            try {
-                // Asegurarse de que la respuesta es un objeto (puede llegar como string)
-                const data = typeof response === 'string' ? JSON.parse(response) : response;
+            // Cerrar el modal
+            bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
+            
+            if (response.exito) {
+                // Mostrar mensaje de éxito
+                mostrarExito(response.mensaje || 'Proyecto guardado correctamente');
                 
-                if (data.exito) {
-                    // Mostrar mensaje de éxito
-                    mostrarExito(data.mensaje || 'Proyecto guardado correctamente');
-                    console.log("Respuesta completa:", data);
-                    
-                    // NO recargar automáticamente para poder ver la consola
-                    console.log("Proyecto guardado correctamente. NO se recargará la página automáticamente para permitir depuración.");
-                    
-                    // Puedes agregar un botón para recargar manualmente
-                    mostrarExito(data.mensaje + ' <button class="btn btn-sm btn-outline-success ms-2" onclick="location.reload()">Recargar página</button>');
-                } else {
-                    mostrarError(data.mensaje || 'Error al guardar el proyecto');
-                    console.error("Error del servidor:", data);
-                }
-            } catch (e) {
-                console.error('Error al procesar la respuesta:', e);
-                console.log('Respuesta recibida (cruda):', response);
-                mostrarError('Error al procesar la respuesta del servidor: ' + e.message);
+                // Limpiar formulario después de 2 segundos
+                setTimeout(() => {
+                    limpiarFormulario();
+                }, 2000);
+            } else {
+                mostrarError(response.mensaje || 'Error al guardar el proyecto');
             }
         },
         error: function(xhr, status, error) {
+            console.error('Error AJAX:', {
+                status: status,
+                error: error,
+                responseText: xhr.responseText
+            });
+            
             // Cerrar el modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('confirmModal'));
-            if (modal) modal.hide();
+            bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
             
             // Mostrar error
-            console.error('Error en la petición AJAX:', error);
-            console.error('Detalles del error:', xhr.responseText);
-            mostrarError('Error al guardar el proyecto: ' + error);
+            let mensajeError = 'Error al guardar el proyecto';
+            try {
+                const errorResponse = JSON.parse(xhr.responseText);
+                mensajeError = errorResponse.mensaje || mensajeError;
+            } catch (e) {
+                mensajeError += ': ' + error;
+            }
+            
+            mostrarError(mensajeError);
         },
         complete: function() {
             // Quitar indicador de carga
-            $('#formProyecto').removeClass('loading');
-            $('#btnConfirmarGuardar').prop('disabled', false).html('Guardar');
+            $('#btnConfirmarGuardar')
+                .prop('disabled', false)
+                .html('Guardar');
         }
     });
 }
@@ -356,77 +380,68 @@ function guardarProyecto() {
  * Limpia el formulario después de un envío exitoso
  */
 function limpiarFormulario() {
-    // Restablecer select2
+    // Limpiar todos los campos
+    $('#formProyecto')[0].reset();
+    
+    // Limpiar Select2
     $('.select2').val(null).trigger('change');
     
-    // Limpiar textarea
-    $('#funcionalidad').val('');
+    // Remover clases de validación
+    $('.form-control, .form-select').removeClass('is-invalid is-valid');
+    $('.select2-selection').removeClass('is-invalid is-valid');
+    $('.invalid-feedback').remove();
     
-    // Limpiar documentos
-    documentos.length = 0;
-    actualizarVistaDocumentos();
+    // Recargar solicitantes
+    cargarSolicitantes();
     
-    // Quitar alertas
-    $('.alert').alert('close');
+    console.log('Formulario limpiado');
 }
 
 /**
  * Muestra un mensaje de error
  */
 function mostrarError(mensaje) {
-    // Remover alertas anteriores
-    $('#formProyecto').find('.alert').remove();
-    
-    // Crear alerta
-    const alerta = $('<div class="alert alert-danger alert-dismissible fade show" role="alert"></div>');
-    alerta.html(`
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>
-        ${mensaje}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    `);
-    
-    // Insertar al inicio del formulario
-    $('#formProyecto').prepend(alerta);
-    
-    // Auto cerrar después de 5 segundos
-    setTimeout(() => {
-        alerta.alert('close');
-    }, 5000);
+    mostrarNotificacion(mensaje, 'danger');
 }
 
 /**
  * Muestra un mensaje de éxito
  */
 function mostrarExito(mensaje) {
+    mostrarNotificacion(mensaje, 'success');
+}
+
+/**
+ * Función genérica para mostrar notificaciones
+ */
+function mostrarNotificacion(mensaje, tipo) {
     // Remover alertas anteriores
-    $('#formProyecto').find('.alert').remove();
+    $('.alert').remove();
     
     // Crear alerta
-    const alerta = $('<div class="alert alert-success alert-dismissible fade show" role="alert"></div>');
-    alerta.html(`
-        <i class="bi bi-check-circle-fill me-2"></i>
-        ${mensaje}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    const iconos = {
+        'success': 'bi-check-circle-fill',
+        'danger': 'bi-exclamation-triangle-fill',
+        'warning': 'bi-exclamation-triangle-fill',
+        'info': 'bi-info-circle-fill'
+    };
+    
+    const alerta = $(`
+        <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
+            <i class="${iconos[tipo] || iconos.info} me-2"></i>
+            ${mensaje}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
     `);
     
-    // Insertar al inicio del formulario
-    $('#formProyecto').prepend(alerta);
+    // Insertar al inicio del contenedor
+    $('.container').prepend(alerta);
     
     // Auto cerrar después de 5 segundos
     setTimeout(() => {
         alerta.alert('close');
     }, 5000);
-}
-
-/**
- * Formatea el tamaño de un archivo
- */
-function formatearTamano(bytes) {
-    if (bytes === 0) return '0 Bytes';
     
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    // Scroll hacia arriba para ver la notificación
+    $('html, body').animate({ scrollTop: 0 }, 300);
 }

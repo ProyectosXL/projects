@@ -28,8 +28,17 @@ try {
     
     // Procesar el formulario si se envió
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        // Recoger los datos del formulario
+        // Recoger los datos del formulario (incluyendo los nuevos campos editables)
         $datosActualizados = [
+            // Campos nuevos editables
+            'Desarrollo' => $_POST['Desarrollo'] ?? null,
+            'TipoPresentacion' => $_POST['TipoPresentacion'] ?? null,
+            'Solicitante' => $_POST['Solicitante'] ?? null,
+            'Pais' => $_POST['Pais'] ?? null,
+            'Sector' => $_POST['Sector'] ?? null,
+            'Funcionalidad' => $_POST['Funcionalidad'] ?? null,
+            
+            // Campos que ya eran editables
             'InicioProgramado' => $_POST['InicioProgramado'] ?? null,
             'FechaLimite' => $_POST['FechaLimite'] ?? null,
             'InicioReal' => $_POST['InicioReal'] ?? null,
@@ -63,6 +72,9 @@ try {
     
     // Obtener historial de comentarios
     $comentarios = $proyectoObj->obtenerComentarios($idProyecto);
+    
+    // Obtener lista de solicitantes para el select
+    $solicitantes = $proyectoObj->obtenerSolicitantes();
     
 } catch (Exception $e) {
     header('Location: index.php?error=' . urlencode('Error al cargar el proyecto: ' . $e->getMessage()));
@@ -130,7 +142,7 @@ try {
         <?php endif; ?>
         
         <form method="post" action="">
-            <!-- Información General (No editable) -->
+            <!-- Información General (Ahora Editable) -->
             <div class="form-section">
                 <h3 class="section-title">Información General</h3>
                 <div class="row">
@@ -141,43 +153,86 @@ try {
                         </div>
                     </div>
                     <div class="col-md-8">
-                        <div class="field-group">
-                            <div class="field-label">Desarrollo</div>
-                            <div class="readonly-field"><?php echo htmlspecialchars($proyecto['Desarrollo']); ?></div>
+                        <div class="mb-3">
+                            <label for="Desarrollo" class="form-label">Nombre del Proyecto</label>
+                            <input type="text" class="form-control" id="Desarrollo" name="Desarrollo" 
+                                   value="<?php echo htmlspecialchars($proyecto['Desarrollo'] ?? ''); ?>" required>
                         </div>
                     </div>
                 </div>
                 <div class="row">
                     <div class="col-md-4">
-                        <div class="field-group">
-                            <div class="field-label">Tipo de Presentación</div>
-                            <div class="readonly-field"><?php echo htmlspecialchars($proyecto['TipoPresentacion'] ?? 'No especificado'); ?></div>
+                        <div class="mb-3">
+                            <label for="TipoPresentacion" class="form-label">Tipo de Presentación</label>
+                            <select class="form-select" id="TipoPresentacion" name="TipoPresentacion">
+                                <option value="">Seleccione tipo</option>
+                                <option value="Aplicación Web" <?php echo (isset($proyecto['TipoPresentacion']) && $proyecto['TipoPresentacion'] === 'Aplicación Web') ? 'selected' : ''; ?>>Aplicación Web</option>
+                                <option value="Integración" <?php echo (isset($proyecto['TipoPresentacion']) && $proyecto['TipoPresentacion'] === 'Integración') ? 'selected' : ''; ?>>Integración</option>
+                                <option value="Política" <?php echo (isset($proyecto['TipoPresentacion']) && $proyecto['TipoPresentacion'] === 'Política') ? 'selected' : ''; ?>>Política</option>
+                                <option value="Power BI" <?php echo (isset($proyecto['TipoPresentacion']) && $proyecto['TipoPresentacion'] === 'Power BI') ? 'selected' : ''; ?>>Power BI</option>
+                                <option value="Procedimiento" <?php echo (isset($proyecto['TipoPresentacion']) && $proyecto['TipoPresentacion'] === 'Procedimiento') ? 'selected' : ''; ?>>Procedimiento</option>
+                            </select>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="field-group">
-                            <div class="field-label">Solicitante</div>
-                            <div class="readonly-field"><?php echo htmlspecialchars($proyecto['Solicitante'] ?? 'No especificado'); ?></div>
+                        <div class="mb-3">
+                            <label for="Solicitante" class="form-label">Solicitante</label>
+                            <select class="form-select" id="Solicitante" name="Solicitante">
+                                <option value="">Seleccione solicitante</option>
+                                <?php if (isset($solicitantes) && is_array($solicitantes)): ?>
+                                    <?php foreach ($solicitantes as $solicitante): ?>
+                                        <?php 
+                                        $valorSolicitante = $solicitante['NOMBRE_FORMATEADO'];
+                                        $textoSolicitante = $solicitante['APELLIDO_Y_NOMBRE'];
+                                        $selected = (isset($proyecto['Solicitante']) && $proyecto['Solicitante'] === $valorSolicitante) ? 'selected' : '';
+                                        ?>
+                                        <option value="<?php echo htmlspecialchars($valorSolicitante); ?>" <?php echo $selected; ?>>
+                                            <?php echo htmlspecialchars($textoSolicitante); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </select>
                         </div>
                     </div>
                     <div class="col-md-4">
-                        <div class="field-group">
-                            <div class="field-label">País</div>
-                            <div class="readonly-field"><?php echo htmlspecialchars($proyecto['Pais'] ?? 'No especificado'); ?></div>
+                        <div class="mb-3">
+                            <label for="Pais" class="form-label">País</label>
+                            <select class="form-select" id="Pais" name="Pais">
+                                <option value="">Seleccione país</option>
+                                <option value="Argentina" <?php echo (isset($proyecto['Pais']) && $proyecto['Pais'] === 'Argentina') ? 'selected' : ''; ?>>Argentina</option>
+                                <option value="Uruguay" <?php echo (isset($proyecto['Pais']) && $proyecto['Pais'] === 'Uruguay') ? 'selected' : ''; ?>>Uruguay</option>
+                                <option value="Argentina/Uruguay" <?php echo (isset($proyecto['Pais']) && $proyecto['Pais'] === 'Argentina/Uruguay') ? 'selected' : ''; ?>>Argentina/Uruguay</option>
+                            </select>
                         </div>
                     </div>
                 </div>
                 <div class="row">
                     <div class="col-md-6">
-                        <div class="field-group">
-                            <div class="field-label">Sector</div>
-                            <div class="readonly-field"><?php echo htmlspecialchars($proyecto['Sector'] ?? 'No especificado'); ?></div>
+                        <div class="mb-3">
+                            <label for="Sector" class="form-label">Sector</label>
+                            <select class="form-select" id="Sector" name="Sector">
+                                <option value="">Seleccione sector</option>
+                                <option value="Abastecimiento" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Abastecimiento') ? 'selected' : ''; ?>>Abastecimiento</option>
+                                <option value="Administración" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Administración') ? 'selected' : ''; ?>>Administración</option>
+                                <option value="Casa central" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Casa central') ? 'selected' : ''; ?>>Casa central</option>
+                                <option value="Comercial" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Comercial') ? 'selected' : ''; ?>>Comercial</option>
+                                <option value="Control de stock" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Control de stock') ? 'selected' : ''; ?>>Control de stock</option>
+                                <option value="Dirección" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Dirección') ? 'selected' : ''; ?>>Dirección</option>
+                                <option value="Ecommerce" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Ecommerce') ? 'selected' : ''; ?>>Ecommerce</option>
+                                <option value="Gerencia" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Gerencia') ? 'selected' : ''; ?>>Gerencia</option>
+                                <option value="Locales propios" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Locales propios') ? 'selected' : ''; ?>>Locales propios</option>
+                                <option value="Logística" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Logística') ? 'selected' : ''; ?>>Logística</option>
+                                <option value="Proyectos" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Proyectos') ? 'selected' : ''; ?>>Proyectos</option>
+                                <option value="Recursos humanos" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Recursos humanos') ? 'selected' : ''; ?>>Recursos humanos</option>
+                                <option value="Sistemas" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Sistemas') ? 'selected' : ''; ?>>Sistemas</option>
+                            </select>
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="field-group">
-                            <div class="field-label">Funcionalidad</div>
-                            <div class="readonly-field"><?php echo htmlspecialchars($proyecto['Funcionalidad'] ?? 'No especificado'); ?></div>
+                        <div class="mb-3">
+                            <label for="Funcionalidad" class="form-label">Funcionalidad</label>
+                            <textarea class="form-control" id="Funcionalidad" name="Funcionalidad" rows="4" 
+                                      placeholder="Ingrese una breve descripción"><?php echo htmlspecialchars($proyecto['Funcionalidad'] ?? ''); ?></textarea>
                         </div>
                     </div>
                 </div>
@@ -345,7 +400,42 @@ try {
     
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Custom JS -->
     <script src="js/editarProyecto.js"></script>
+    
+    <!-- Script simple para los selects -->
+    <script>
+        $(document).ready(function() {
+            console.log('Página cargada, verificando valores de los selects...');
+            
+            // Debug: Mostrar valores actuales
+            console.log('TipoPresentacion:', $('#TipoPresentacion').val());
+            console.log('Solicitante:', $('#Solicitante').val());
+            console.log('Pais:', $('#Pais').val());
+            console.log('Sector:', $('#Sector').val());
+            
+            // Cambiar color del select cuando se selecciona algo
+            $('select.form-select').on('change', function() {
+                if ($(this).val()) {
+                    $(this).removeClass('text-muted').addClass('text-dark');
+                } else {
+                    $(this).removeClass('text-dark').addClass('text-muted');
+                }
+            });
+            
+            // Aplicar estilo inicial
+            $('select.form-select').each(function() {
+                if ($(this).val()) {
+                    $(this).removeClass('text-muted').addClass('text-dark');
+                } else {
+                    $(this).removeClass('text-dark').addClass('text-muted');
+                }
+            });
+            
+            console.log('✅ Selects configurados correctamente');
+        });
+    </script>
 
 </body>
 </html>

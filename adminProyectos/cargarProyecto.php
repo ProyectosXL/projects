@@ -48,12 +48,23 @@
                 <input type="text" class="form-control" id="desarrollo" name="desarrollo" placeholder="Ingrese el nombre del proyecto" required>
             </div>
 
-            <div class="mb-3">
-                <label for="solicitante" class="form-label">Solicitante</label>
-                <select class="form-select select2" id="solicitante" name="solicitante" required>
-                    <option value="">Seleccione solicitante</option>
-                    <!-- Se cargará dinámicamente desde JS -->
-                </select>
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="solicitante" class="form-label">Solicitante</label>
+                    <select class="form-select select2" id="solicitante" name="solicitante" required>
+                        <option value="">Seleccione solicitante</option>
+                        <!-- Se cargará dinámicamente desde JS -->
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="prioridad" class="form-label">Prioridad</label>
+                    <select class="form-select select2" id="prioridad" name="prioridad" required>
+                        <option value="">Seleccione prioridad</option>
+                        <option value="Alta">Alta</option>
+                        <option value="Media">Media</option>
+                        <option value="Baja">Baja</option>
+                    </select>
+                </div>
             </div>
 
             <div class="row mb-3">
@@ -91,22 +102,6 @@
                 <label for="funcionalidad" class="form-label">Funcionalidad</label>
                 <div class="input-group">
                     <textarea class="form-control" id="funcionalidad" name="funcionalidad" rows="4" placeholder="Ingrese una breve descripción" required></textarea>
-                </div>
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Documentos adjuntos</label>
-                <div id="documentosContainer">
-                    <!-- Aquí se mostrarán los documentos adjuntos -->
-                </div>
-                <div class="input-group mb-3">
-                    <input type="file" class="form-control" id="documentoInput" accept=".pdf,.doc,.docx,.xls,.xlsx">
-                    <button class="btn btn-primary" type="button" id="btnAgregarDocumento">
-                        <i class="bi bi-plus-lg"></i> Agregar
-                    </button>
-                </div>
-                <div class="form-text">
-                    Formatos permitidos: PDF, Word, Excel. Máximo 5 MB por archivo.
                 </div>
             </div>
 

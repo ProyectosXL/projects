@@ -14,19 +14,24 @@ const DetalleProyectoPestanas = {
     // Inicializa el módulo
     init: function(proyectoId) {
         this.proyectoId = proyectoId;
+        console.log('Inicializando pestañas para proyecto:', proyectoId);
         this.cargarDatosProyecto();
     },
     
     // Carga los datos del proyecto desde la API
     cargarDatosProyecto: function() {
+        console.log('Cargando datos del proyecto:', this.proyectoId);
+        
         fetch(`api/detalleProyecto.php?id=${this.proyectoId}&accion=obtener`)
             .then(response => {
+                console.log('Respuesta recibida:', response);
                 if (!response.ok) {
-                    throw new Error(`Error al cargar datos: ${response.status}`);
+                    throw new Error(`Error HTTP: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
+                console.log('Datos recibidos:', data);
                 if (data.exito) {
                     this.proyectoData = data.proyecto;
                     this.actualizarInterfaz();
@@ -35,51 +40,48 @@ const DetalleProyectoPestanas = {
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                DetalleProyectoUI.mostrarNotificacion('No se pudieron cargar los datos del proyecto', 'error');
+                console.error('Error en cargarDatosProyecto:', error);
+                if (typeof DetalleProyectoUI !== 'undefined') {
+                    DetalleProyectoUI.mostrarNotificacion('No se pudieron cargar los datos del proyecto: ' + error.message, 'error');
+                } else {
+                    // Fallback si DetalleProyectoUI no está disponible
+                    alert('Error al cargar datos del proyecto: ' + error.message);
+                }
             });
     },
     
     // Actualiza la interfaz con los datos cargados
     actualizarInterfaz: function() {
-        if (!this.proyectoData) return;
+        if (!this.proyectoData) {
+            console.error('No hay datos del proyecto para mostrar');
+            return;
+        }
+        
+        console.log('Actualizando interfaz con datos:', this.proyectoData);
         
         // Actualizar información general
-        document.getElementById('proyectoId').textContent = this.proyectoData.ID;
-        document.getElementById('proyectoTitulo').textContent = this.proyectoData.Desarrollo;
+        this.actualizarElemento('proyectoId', this.proyectoData.ID);
+        this.actualizarElemento('proyectoTitulo', this.proyectoData.Desarrollo);
         
         // Actualizar estado
         const estadoElement = document.getElementById('proyectoEstado');
-        estadoElement.textContent = this.proyectoData.Estado || 'No especificado';
-        estadoElement.className = `badge estado-${(this.proyectoData.Estado || 'pendiente').toLowerCase()}`;
+        if (estadoElement) {
+            estadoElement.textContent = this.proyectoData.Estado || 'No especificado';
+            estadoElement.className = `badge estado-${(this.proyectoData.Estado || 'pendiente').toLowerCase()}`;
+        }
         
         // Actualizar etapa
-        document.getElementById('proyectoEtapa').textContent = this.proyectoData.EtapaProyecto || 'No especificado';
+        this.actualizarElemento('proyectoEtapa', this.proyectoData.EtapaProyecto || 'No especificado');
         
         // Actualizar prioridad
         const prioridadElement = document.getElementById('proyectoPrioridad');
-        prioridadElement.textContent = this.proyectoData.Prioridad || 'No especificado';
-        prioridadElement.className = `prioridad-badge ${this.proyectoData.clasePrioridad}`;
-        
-        // Actualizar progreso circular
-        const porcentaje = parseFloat(this.proyectoData.PorcentajeAvance) * 100;
-        const progresoElement = document.getElementById('proyectoProgreso');
-        const progresoTexto = document.getElementById('proyectoProgresoTexto');
-        
-        let color = '#ff5722';
-        if (porcentaje >= 85) {
-            color = '#4caf50';
-        } else if (porcentaje >= 60) {
-            color = '#00bcd4';
-        } else if (porcentaje >= 30) {
-            color = '#2196f3';
-        } else if (porcentaje >= 15) {
-            color = '#ff9800';
+        if (prioridadElement) {
+            prioridadElement.textContent = this.proyectoData.Prioridad || 'No especificado';
+            prioridadElement.className = `prioridad-badge ${this.proyectoData.clasePrioridad || ''}`;
         }
         
-        progresoElement.style.setProperty('--percentage', `${porcentaje}%`);
-        progresoElement.style.setProperty('--color', color);
-        progresoTexto.textContent = `${Math.round(porcentaje)}%`;
+        // Actualizar progreso circular
+        this.actualizarProgreso();
         
         // Actualizar campos de información
         this.actualizarTablaInformacion('detallesGenerales', {
@@ -101,27 +103,182 @@ const DetalleProyectoPestanas = {
         });
         
         // Actualizar descripción
-        document.getElementById('proyectoDescripcion').innerHTML = 
+        this.actualizarElemento('proyectoDescripcion', 
             this.proyectoData.Funcionalidad ? 
             this.proyectoData.Funcionalidad.replace(/\n/g, '<br>') : 
-            'Sin descripción';
+            'Sin descripción', true);
+        
+        console.log('Interfaz actualizada correctamente');
+    },
+    
+    // Función auxiliar para actualizar elementos
+    actualizarElemento: function(id, contenido, esHTML = false) {
+        const elemento = document.getElementById(id);
+        if (elemento) {
+            if (esHTML) {
+                elemento.innerHTML = contenido;
+            } else {
+                elemento.textContent = contenido;
+            }
+        } else {
+            console.warn(`Elemento con ID '${id}' no encontrado`);
+        }
+    },
+    
+    // Actualizar progreso circular
+    actualizarProgreso: function() {
+        const porcentaje = parseFloat(this.proyectoData.PorcentajeAvance || 0) * 100;
+        const progresoElement = document.getElementById('proyectoProgreso');
+        const progresoTexto = document.getElementById('proyectoProgresoTexto');
+        
+        if (progresoElement && progresoTexto) {
+            let color = '#6c757d'; // Gris por defecto
+            
+            if (porcentaje >= 85) {
+                color = '#4caf50'; // Verde
+            } else if (porcentaje >= 60) {
+                color = '#00bcd4'; // Azul claro
+            } else if (porcentaje >= 30) {
+                color = '#2196f3'; // Azul
+            } else if (porcentaje >= 15) {
+                color = '#ff9800'; // Naranja
+            } else if (porcentaje > 0) {
+                color = '#ff5722'; // Rojo
+            }
+            
+            progresoElement.style.setProperty('--percentage', `${porcentaje}%`);
+            progresoElement.style.setProperty('--color', color);
+            progresoTexto.textContent = `${Math.round(porcentaje)}%`;
+        }
     },
     
     // Actualiza una tabla de información
     actualizarTablaInformacion: function(tableId, datos) {
         const tabla = document.getElementById(tableId);
-        if (!tabla) return;
+        if (!tabla) {
+            console.warn(`Tabla con ID '${tableId}' no encontrada`);
+            return;
+        }
         
         let html = '';
         for (const [clave, valor] of Object.entries(datos)) {
             html += `
                 <tr>
-                    <th>${clave}</th>
+                    <th style="width: 40%;">${clave}</th>
                     <td>${valor}</td>
                 </tr>
             `;
         }
         
         tabla.innerHTML = html;
+    }
+}; // <-- Esta llave y punto y coma eran necesarios
+
+/**
+ * JavaScript para manejo de comentarios en detalle de proyecto
+ * Controla la carga y visualización de comentarios
+ */
+
+const DetalleProyectoComentarios = {
+    // ID del proyecto actual
+    proyectoId: null,
+    
+    // Lista de comentarios
+    comentarios: [],
+    
+    // Inicializa el módulo
+    init: function(proyectoId) {
+        this.proyectoId = proyectoId;
+        console.log('Inicializando comentarios para proyecto:', proyectoId);
+        this.cargarComentarios();
+    },
+    
+    cargarComentarios: function() {
+        console.log('Cargando comentarios del proyecto:', this.proyectoId);
+        
+        fetch(`api/detalleProyecto.php?id=${this.proyectoId}&accion=comentarios`)
+            .then(response => {
+                console.log('Respuesta de comentarios:', response);
+                if (!response.ok) {
+                    throw new Error(`Error HTTP: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Datos de comentarios recibidos:', data);
+                if (data.exito) {
+                    this.comentarios = data.comentarios || [];
+                    this.actualizarVistaComentarios();
+                    this.notificarCantidadComentarios();
+                } else {
+                    throw new Error(data.error || 'Error desconocido');
+                }
+            })
+            .catch(error => {
+                console.error('Error en cargarComentarios:', error);
+                if (typeof DetalleProyectoUI !== 'undefined') {
+                    DetalleProyectoUI.mostrarNotificacion('No se pudieron cargar los comentarios: ' + error.message, 'error');
+                }
+                
+                // Mostrar mensaje de error en la interfaz
+                this.comentarios = [];
+                this.actualizarVistaComentarios();
+                this.notificarCantidadComentarios();
+            });
+    },
+    
+    // Actualiza la vista de comentarios
+    actualizarVistaComentarios: function() {
+        const container = document.querySelector('.comentarios-container');
+        
+        if (!container) {
+            console.warn('Contenedor de comentarios no encontrado');
+            return;
+        }
+        
+        // Si no hay comentarios, mostrar mensaje
+        if (this.comentarios.length === 0) {
+            container.innerHTML = `
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No hay comentarios registrados para este proyecto.
+                </div>
+            `;
+            return;
+        }
+        
+        // Limpiar contenedor
+        container.innerHTML = '';
+        
+        // Agregar comentarios
+        this.comentarios.forEach(comentario => {
+            const comentarioHTML = `
+                <div class="comment-item">
+                    <div class="d-flex justify-content-between">
+                        <span class="comment-author">${comentario.Autor || 'Usuario'}</span>
+                        <span class="comment-date">${comentario.FechaCreacion || 'Fecha desconocida'}</span>
+                    </div>
+                    <div class="comment-text">
+                        ${(comentario.Comentario || 'Sin comentario').replace(/\n/g, '<br>')}
+                    </div>
+                </div>
+            `;
+            container.innerHTML += comentarioHTML;
+        });
+        
+        console.log('Vista de comentarios actualizada con', this.comentarios.length, 'comentarios');
+    },
+    
+    // Notifica la cantidad de comentarios disponibles
+    notificarCantidadComentarios: function() {
+        // Crear y disparar un evento personalizado
+        const evento = new CustomEvent('comentariosActualizados', {
+            detail: {
+                cantidad: this.comentarios.length
+            }
+        });
+        
+        document.dispatchEvent(evento);
+        console.log('Evento comentariosActualizados disparado:', this.comentarios.length);
     }
 };

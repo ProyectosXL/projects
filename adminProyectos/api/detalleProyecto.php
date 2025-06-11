@@ -89,6 +89,7 @@ function obtenerDetalleProyecto($proyectoObj, $idProyecto) {
         ));
         
     } catch (Exception $e) {
+        error_log('Error en obtenerDetalleProyecto: ' . $e->getMessage());
         responderError('Error al obtener el proyecto: ' . $e->getMessage());
     }
 }
@@ -107,29 +108,28 @@ function obtenerComentariosProyecto($proyectoObj, $idProyecto) {
         ));
         
     } catch (Exception $e) {
+        error_log('Error en obtenerComentariosProyecto: ' . $e->getMessage());
         responderError('Error al obtener comentarios: ' . $e->getMessage());
     }
 }
 
 /**
  * Obtiene los documentos de un proyecto
- * Actualizado para incluir enlaces a Google Drive
+ * Modificado para trabajar solo con almacenamiento local
  */
 function obtenerDocumentosProyecto($proyectoObj, $idProyecto) {
     try {
         // Obtener conexión a base de datos
         $conexion = $proyectoObj->getConexion();
         
-        // Consulta para obtener documentos
+        // Consulta para obtener documentos (sin columnas de Google Drive)
         $sql = "SELECT 
                     ID, 
                     NombreOriginal, 
                     NombreArchivo, 
                     TipoArchivo, 
                     TamanoArchivo, 
-                    FechaSubida,
-                    DriveFileId,
-                    DriveFileUrl
+                    FechaSubida
                 FROM DocumentosProyectos 
                 WHERE ID_Proyecto = ?
                 ORDER BY FechaSubida DESC";
@@ -158,7 +158,7 @@ function obtenerDocumentosProyecto($proyectoObj, $idProyecto) {
             $tamano = formatearTamano($row['TamanoArchivo']);
             
             // Construir la URL local para el archivo
-            $rutaArchivo = 'documentos/' . $idProyecto . '/' . $row['NombreArchivo'];
+            $rutaArchivo = 'servirDocumento.php?proyecto=' . $idProyecto . '&archivo=' . urlencode($row['NombreArchivo']);
             
             $documentos[] = array(
                 'id' => $row['ID'],
@@ -168,9 +168,7 @@ function obtenerDocumentosProyecto($proyectoObj, $idProyecto) {
                 'tamano' => $tamano,
                 'fecha' => $fecha,
                 'usuario' => 'Admin', // En una implementación real, obtendríamos el usuario que subió el archivo
-                'url' => $rutaArchivo,
-                'driveFileId' => $row['DriveFileId'],
-                'driveUrl' => $row['DriveFileUrl']
+                'url' => $rutaArchivo
             );
         }
         
@@ -228,3 +226,4 @@ function responderError($mensaje, $codigo = 400) {
     
     exit;
 }
+?>

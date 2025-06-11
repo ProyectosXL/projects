@@ -13,7 +13,7 @@
     <!-- Custom CSS -->
     <link href="css/styles.css" rel="stylesheet">
     <link href="css/detalleProyecto.css" rel="stylesheet">
-    <link href="css/drive-integration.css" rel="stylesheet">
+
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">

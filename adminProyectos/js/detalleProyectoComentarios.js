@@ -14,23 +14,26 @@ const DetalleProyectoComentarios = {
     // Inicializa el módulo
     init: function(proyectoId) {
         this.proyectoId = proyectoId;
+        console.log('Inicializando comentarios para proyecto:', proyectoId);
         this.cargarComentarios();
     },
     
     cargarComentarios: function() {
+        console.log('Cargando comentarios del proyecto:', this.proyectoId);
+        
         fetch(`api/detalleProyecto.php?id=${this.proyectoId}&accion=comentarios`)
             .then(response => {
+                console.log('Respuesta de comentarios:', response);
                 if (!response.ok) {
-                    throw new Error(`Error al cargar comentarios: ${response.status}`);
+                    throw new Error(`Error HTTP: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
+                console.log('Datos de comentarios recibidos:', data);
                 if (data.exito) {
-                    this.comentarios = data.comentarios;
+                    this.comentarios = data.comentarios || [];
                     this.actualizarVistaComentarios();
-                    
-                    // Disparar evento para actualizar el contador
                     this.notificarCantidadComentarios();
                 } else {
                     throw new Error(data.error || 'Error desconocido');
@@ -38,17 +41,12 @@ const DetalleProyectoComentarios = {
             })
             .catch(error => {
                 console.error('Error en cargarComentarios:', error);
-                DetalleProyectoUI.mostrarNotificacion('No se pudieron cargar los comentarios: ' + error.message, 'error');
+                if (typeof DetalleProyectoUI !== 'undefined') {
+                    DetalleProyectoUI.mostrarNotificacion('No se pudieron cargar los comentarios: ' + error.message, 'error');
+                }
                 
-                // SOLUCIÓN TEMPORAL: Mostrar comentarios de muestra
-                this.comentarios = [
-                    {
-                        Id: 1,
-                        Autor: "Usuario Ejemplo",
-                        Comentario: "Este es un comentario de ejemplo para mostrar mientras se implementa la API.",
-                        FechaCreacion: new Date().toISOString().split('T')[0]
-                    }
-                ];
+                // Mostrar mensaje de error en la interfaz
+                this.comentarios = [];
                 this.actualizarVistaComentarios();
                 this.notificarCantidadComentarios();
             });
@@ -58,7 +56,10 @@ const DetalleProyectoComentarios = {
     actualizarVistaComentarios: function() {
         const container = document.querySelector('.comentarios-container');
         
-        if (!container) return;
+        if (!container) {
+            console.warn('Contenedor de comentarios no encontrado');
+            return;
+        }
         
         // Si no hay comentarios, mostrar mensaje
         if (this.comentarios.length === 0) {
@@ -76,18 +77,21 @@ const DetalleProyectoComentarios = {
         
         // Agregar comentarios
         this.comentarios.forEach(comentario => {
-            container.innerHTML += `
+            const comentarioHTML = `
                 <div class="comment-item">
                     <div class="d-flex justify-content-between">
-                        <span class="comment-author">${comentario.Autor}</span>
-                        <span class="comment-date">${comentario.FechaCreacion}</span>
+                        <span class="comment-author">${comentario.Autor || 'Usuario'}</span>
+                        <span class="comment-date">${comentario.FechaCreacion || 'Fecha desconocida'}</span>
                     </div>
                     <div class="comment-text">
-                        ${comentario.Comentario.replace(/\n/g, '<br>')}
+                        ${(comentario.Comentario || 'Sin comentario').replace(/\n/g, '<br>')}
                     </div>
                 </div>
             `;
+            container.innerHTML += comentarioHTML;
         });
+        
+        console.log('Vista de comentarios actualizada con', this.comentarios.length, 'comentarios');
     },
     
     // Notifica la cantidad de comentarios disponibles
@@ -100,5 +104,6 @@ const DetalleProyectoComentarios = {
         });
         
         document.dispatchEvent(evento);
+        console.log('Evento comentariosActualizados disparado:', this.comentarios.length);
     }
 };
