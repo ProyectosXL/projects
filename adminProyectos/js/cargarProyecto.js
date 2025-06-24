@@ -292,6 +292,7 @@ function mostrarConfirmacion() {
 
 /**
  * Guarda el proyecto en la base de datos
+ * Versión con mensaje mejorado sin ID
  */
 function guardarProyecto() {
     // Validar el formulario una vez más
@@ -335,13 +336,21 @@ function guardarProyecto() {
             bootstrap.Modal.getInstance(document.getElementById('confirmModal')).hide();
             
             if (response.exito) {
-                // Mostrar mensaje de éxito
+                // Mostrar mensaje de éxito personalizado
                 mostrarExito(response.mensaje || 'Proyecto guardado correctamente');
                 
-                // Limpiar formulario después de 2 segundos
+                // Log adicional si tenemos datos del proyecto
+                if (response.nombreProyecto) {
+                    console.log('✅ Proyecto creado:', response.nombreProyecto);
+                    if (response.numeroProyecto) {
+                        console.log('📝 Número de proyecto:', response.numeroProyecto);
+                    }
+                }
+                
+                // Limpiar formulario después de 3 segundos para que el usuario pueda leer el mensaje
                 setTimeout(() => {
                     limpiarFormulario();
-                }, 2000);
+                }, 3000);
             } else {
                 mostrarError(response.mensaje || 'Error al guardar el proyecto');
             }

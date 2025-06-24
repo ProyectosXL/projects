@@ -11,8 +11,8 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Configuración de cabeceras para respuestas JSON
-header('Content-Type: application/json');
+// Configuración de cabeceras para respuestas JSON con UTF-8
+header('Content-Type: application/json; charset=UTF-8');
 
 // Incluir clase de proyecto
 require_once '../class/proyecto.php';
@@ -65,6 +65,29 @@ function obtenerSolicitantes($proyectoObj) {
 }
 
 /**
+ * Función para limpiar texto y asegurar UTF-8
+ */
+function limpiarTextoUTF8($texto) {
+    if (!is_string($texto)) {
+        return $texto;
+    }
+    
+    // Detectar encoding y convertir si es necesario
+    $encodings = ['UTF-8', 'ISO-8859-1', 'Windows-1252'];
+    $encoding = mb_detect_encoding($texto, $encodings, true);
+    
+    if ($encoding && $encoding !== 'UTF-8') {
+        $texto = mb_convert_encoding($texto, 'UTF-8', $encoding);
+    }
+    
+    // Limpiar caracteres problemáticos específicos
+    $texto = str_replace(['â€œ', 'â€', 'â€™', 'Ã¡', 'Ã©', 'Ã­', 'Ã³', 'Ãº', 'Ã±'], 
+                        ['"', '"', "'", 'á', 'é', 'í', 'ó', 'ú', 'ñ'], $texto);
+    
+    return trim($texto);
+}
+
+/**
  * Guarda un nuevo proyecto
  */
 function guardarProyecto($proyectoObj) {
@@ -78,8 +101,12 @@ function guardarProyecto($proyectoObj) {
                 responderError("El campo '$campo' es requerido");
                 return;
             }
-            $datosProyecto[$campo] = trim($_POST[$campo]);
+            // Limpiar y asegurar UTF-8
+            $datosProyecto[$campo] = limpiarTextoUTF8($_POST[$campo]);
         }
+        
+        // Log para debugging
+        error_log('Datos procesados con UTF-8: ' . print_r($datosProyecto, true));
         
         // Mapear los campos a los nombres de la base de datos
         $datosParaDB = [
@@ -98,16 +125,21 @@ function guardarProyecto($proyectoObj) {
             'PorcentajeAvance' => 0
         ];
         
-        // Log para debugging
-        error_log('Datos para crear proyecto: ' . print_r($datosParaDB, true));
+        // Crear el proyecto - ahora retorna el nombre del proyecto
+        $nombreProyecto = $proyectoObj->crearProyecto($datosParaDB);
         
-        // Crear el proyecto
-        $proyectoId = $proyectoObj->crearProyecto($datosParaDB);
-        
-        if ($proyectoId) {
-            responderExito('Proyecto guardado correctamente', [
-                'proyectoId' => $proyectoId,
-                'mensaje' => 'El proyecto se ha guardado exitosamente con ID: ' . $proyectoId . '. Estado inicial: Pendiente.'
+        if ($nombreProyecto) {
+            // Obtener un número de proyecto aproximado (últimos registros)
+            $numeroProyecto = obtenerNumeroProyectoAproximado($proyectoObj, $nombreProyecto);
+            
+            $mensajeExito = "Se ha cargado exitosamente el proyecto \"$nombreProyecto\"";
+            if ($numeroProyecto) {
+                $mensajeExito .= " con el número $numeroProyecto";
+            }
+            
+            responderExito($mensajeExito, [
+                'nombreProyecto' => $nombreProyecto,
+                'numeroProyecto' => $numeroProyecto
             ]);
         } else {
             responderError('No se pudo guardar el proyecto');
@@ -116,6 +148,34 @@ function guardarProyecto($proyectoObj) {
     } catch (Exception $e) {
         error_log('Error en guardarProyecto: ' . $e->getMessage());
         responderError('Error al guardar el proyecto: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Obtiene un número de proyecto aproximado para el mensaje
+ */
+function obtenerNumeroProyectoAproximado($proyectoObj, $nombreProyecto) {
+    try {
+        $conexion = $proyectoObj->getConexion();
+        
+        // Buscar el proyecto recién insertado
+        $sql = "SELECT TOP 1 ID FROM HistorialProyectos 
+                WHERE Desarrollo = ? 
+                ORDER BY ID DESC";
+        
+        $params = array($nombreProyecto);
+        $stmt = sqlsrv_query($conexion, $sql, $params);
+        
+        if ($stmt && $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            sqlsrv_free_stmt($stmt);
+            return $row['ID'];
+        }
+        
+        return null;
+        
+    } catch (Exception $e) {
+        error_log('Error al obtener número de proyecto: ' . $e->getMessage());
+        return null;
     }
 }
 

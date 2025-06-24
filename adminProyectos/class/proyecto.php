@@ -104,6 +104,7 @@ class Proyecto
     
     /**
      * Crea un nuevo proyecto en la base de datos
+     * Versión con formato de fecha corregido
      */
     public function crearProyecto($datos, $documentos = [])
     {
@@ -111,77 +112,105 @@ class Proyecto
             // Verificar si la tabla HistorialProyectos existe
             $this->verificarTablaHistorialProyectos();
             
-            // Generar fecha actual en formato compatible con SQL Server
-            $fechaCreacion = date('Y-m-d H:i:s');
+            // Limpiar caracteres especiales y asegurar UTF-8
+            $datosLimpios = [
+                'TipoPresentacion' => $this->limpiarTextoUTF8($datos['TipoPresentacion']),
+                'Desarrollo' => $this->limpiarTextoUTF8($datos['Desarrollo']),
+                'Solicitante' => $this->limpiarTextoUTF8($datos['Solicitante']),
+                'Prioridad' => $this->limpiarTextoUTF8($datos['Prioridad']),
+                'Pais' => $this->limpiarTextoUTF8($datos['Pais']),
+                'Sector' => $this->limpiarTextoUTF8($datos['Sector']),
+                'Funcionalidad' => $this->limpiarTextoUTF8($datos['Funcionalidad'])
+            ];
             
-            // Preparar la consulta SQL para insertar el proyecto
+            // Log para debugging
+            error_log('Datos limpios para insertar: ' . print_r($datosLimpios, true));
+            
+            // SOLUCIÓN 1: Usar GETDATE() de SQL Server en lugar de fecha de PHP
             $sql = "INSERT INTO HistorialProyectos (
                         TipoPresentacion, 
                         Desarrollo,
                         Solicitante, 
+                        Prioridad,
                         Pais, 
                         Sector, 
                         Funcionalidad, 
                         FechaCreacion, 
                         Estado, 
                         EtapaProyecto
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, GETDATE(), ?, ?)";
             
-            // Crear parámetros con tipos específicos para evitar conversiones implícitas
+            // Preparar parámetros (sin fecha - usamos GETDATE())
             $params = array(
-                array($datos['tipo'], SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
-                array($datos['desarrollo'], SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
-                array($datos['solicitante'], SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
-                array($datos['pais'], SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
-                array($datos['sector'], SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
-                array($datos['funcionalidad'], SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR('max')),
-                array($fechaCreacion, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_DATETIME),
-                array('Pendiente', SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
-                array('Pendiente', SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255))
+                $datosLimpios['TipoPresentacion'],
+                $datosLimpios['Desarrollo'],
+                $datosLimpios['Solicitante'],
+                $datosLimpios['Prioridad'],
+                $datosLimpios['Pais'],
+                $datosLimpios['Sector'],
+                $datosLimpios['Funcionalidad'],
+                'Pendiente',
+                'Pendiente'
             );
             
-            // Usar sqlsrv_prepare para preparar la consulta con los parámetros tipados
-            $stmt = sqlsrv_prepare($this->cid_central, $sql, $params);
+            error_log('SQL: ' . $sql);
+            error_log('Parámetros: ' . print_r($params, true));
             
-            if (!$stmt) {
-                throw new Exception("Error al preparar la consulta: " . print_r(sqlsrv_errors(), true));
-            }
+            // Ejecutar la consulta
+            $stmt = sqlsrv_query($this->cid_central, $sql, $params);
             
-            // Ejecutar la consulta preparada
-            if (!sqlsrv_execute($stmt)) {
-                throw new Exception("Error al insertar el proyecto: " . print_r(sqlsrv_errors(), true));
-            }
-            
-            // Obtener el ID del proyecto insertado
-            $sql = "SELECT SCOPE_IDENTITY() as ID";
-            $stmt = sqlsrv_query($this->cid_central, $sql);
-
             if ($stmt === false) {
-                $sqlErrors = print_r(sqlsrv_errors(), true);
-                error_log("Error al obtener ID del proyecto: $sqlErrors");
-                throw new Exception('Error al obtener el ID del proyecto: ' . $sqlErrors);
+                $errors = sqlsrv_errors();
+                error_log('Error al insertar proyecto: ' . print_r($errors, true));
+                throw new Exception("Error al insertar el proyecto: " . print_r($errors, true));
             }
-
-            $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
-            $proyectoId = $row['ID'];
-
-            // Asegurarse de que el ID no sea nulo o vacío
-            if (empty($proyectoId)) {
-                error_log("ID del proyecto está vacío después de SCOPE_IDENTITY()");
-                throw new Exception('No se pudo obtener el ID del proyecto creado');
+            
+            // Verificar cuántas filas fueron afectadas
+            $filasAfectadas = sqlsrv_rows_affected($stmt);
+            
+            // Liberar statement
+            sqlsrv_free_stmt($stmt);
+            
+            if ($filasAfectadas > 0) {
+                error_log("✅ Proyecto insertado exitosamente. Filas afectadas: $filasAfectadas");
+                error_log("📅 Fecha insertada usando GETDATE() del servidor SQL");
+                
+                // Retornar el nombre del proyecto para el mensaje de éxito
+                return $datosLimpios['Desarrollo'];
+            } else {
+                throw new Exception('No se insertó ningún registro');
             }
-
-            // Registrar el ID obtenido
-            error_log("Proyecto creado con ID: $proyectoId");
-
-            return $proyectoId;
             
         } catch (Exception $e) {
-            error_log("Error en crearProyecto: " . $e->getMessage());
+            error_log("❌ Error en crearProyecto: " . $e->getMessage());
             throw $e;
         }
     }
-    
+
+    /**
+     * Limpia texto para UTF-8 correcto
+     */
+    private function limpiarTextoUTF8($texto) {
+        if (!is_string($texto)) {
+            return $texto;
+        }
+        
+        // Convertir a UTF-8 desde diferentes encodings posibles
+        $encodings = ['UTF-8', 'ISO-8859-1', 'Windows-1252'];
+        $encoding = mb_detect_encoding($texto, $encodings, true);
+        
+        if ($encoding && $encoding !== 'UTF-8') {
+            $texto = mb_convert_encoding($texto, 'UTF-8', $encoding);
+        }
+        
+        // Normalizar y limpiar caracteres problemáticos específicos
+        $texto = trim($texto);
+        $texto = str_replace(['â€œ', 'â€', 'â€™', 'Ã¡', 'Ã©', 'Ã­', 'Ã³', 'Ãº', 'Ã±'], 
+                            ['"', '"', "'", 'á', 'é', 'í', 'ó', 'ú', 'ñ'], $texto);
+        
+        return $texto;
+    }
+        
     /**
      * Verifica si la tabla HistorialProyectos existe, si no, la crea
      */
