@@ -42,6 +42,7 @@ const DetalleProyectoDocumentos = {
             btnCancelarSubida.addEventListener('click', function() {
                 document.getElementById('dropzone-container').classList.add('d-none');
                 btnSubirDocumento.classList.remove('d-none');
+                self.restaurarDropzone();
             });
         }
         
@@ -109,14 +110,18 @@ const DetalleProyectoDocumentos = {
         if (confirmarEliminarModal) {
             // Botón para confirmar eliminación
             const btnConfirmarEliminar = document.getElementById('btnConfirmarEliminar');
-            btnConfirmarEliminar.addEventListener('click', function() {
-                self.eliminarDocumento();
-                bootstrap.Modal.getInstance(confirmarEliminarModal).hide();
-            });
+            if (btnConfirmarEliminar) {
+                btnConfirmarEliminar.addEventListener('click', function() {
+                    self.eliminarDocumento();
+                    bootstrap.Modal.getInstance(confirmarEliminarModal).hide();
+                });
+            }
         }
     },
     
     cargarDocumentos: function() {
+        console.log('Cargando documentos para proyecto:', this.proyectoId);
+        
         // Obtener de la API
         fetch(`api/detalleProyecto.php?id=${this.proyectoId}&accion=documentos`)
             .then(response => {
@@ -126,8 +131,9 @@ const DetalleProyectoDocumentos = {
                 return response.json();
             })
             .then(data => {
+                console.log('Respuesta de documentos:', data);
                 if (data.exito) {
-                    this.documentos = data.documentos;
+                    this.documentos = data.documentos || [];
                     this.actualizarVistaDocumentos();
                     this.notificarCantidadDocumentos();
                 } else {
@@ -136,7 +142,9 @@ const DetalleProyectoDocumentos = {
             })
             .catch(error => {
                 console.error('Error:', error);
-                DetalleProyectoUI.mostrarNotificacion('No se pudieron cargar los documentos', 'error');
+                if (typeof DetalleProyectoUI !== 'undefined') {
+                    DetalleProyectoUI.mostrarNotificacion('No se pudieron cargar los documentos: ' + error.message, 'error');
+                }
                 
                 // Mostrar tabla vacía
                 this.documentos = [];
@@ -195,6 +203,8 @@ const DetalleProyectoDocumentos = {
                 </tr>
             `;
         });
+        
+        console.log('Vista de documentos actualizada con', this.documentos.length, 'documentos');
     },
     
     // Notifica la cantidad de documentos disponibles
@@ -206,13 +216,20 @@ const DetalleProyectoDocumentos = {
         });
         
         document.dispatchEvent(evento);
+        console.log('Evento documentosActualizados disparado:', this.documentos.length);
     },
     
     // Procesa un archivo para subirlo al servidor
     procesarArchivo: function(file) {
+        console.log('Procesando archivo:', file.name);
+        
         // Verificar tamaño máximo (10MB)
         if (file.size > 10 * 1024 * 1024) {
-            DetalleProyectoUI.mostrarNotificacion('El archivo es demasiado grande. El tamaño máximo permitido es 10MB.', 'warning');
+            if (typeof DetalleProyectoUI !== 'undefined') {
+                DetalleProyectoUI.mostrarNotificacion('El archivo es demasiado grande. El tamaño máximo permitido es 10MB.', 'warning');
+            } else {
+                alert('El archivo es demasiado grande. El tamaño máximo permitido es 10MB.');
+            }
             return;
         }
         
@@ -229,7 +246,11 @@ const DetalleProyectoDocumentos = {
         ];
         
         if (!tiposPermitidos.includes(file.type)) {
-            DetalleProyectoUI.mostrarNotificacion('Tipo de archivo no permitido. Por favor, suba archivos PDF, DOC, DOCX, XLS, XLSX, PNG, JPG o ZIP.', 'warning');
+            if (typeof DetalleProyectoUI !== 'undefined') {
+                DetalleProyectoUI.mostrarNotificacion('Tipo de archivo no permitido. Por favor, suba archivos PDF, DOC, DOCX, XLS, XLSX, PNG, JPG o ZIP.', 'warning');
+            } else {
+                alert('Tipo de archivo no permitido.');
+            }
             return;
         }
         
@@ -238,6 +259,8 @@ const DetalleProyectoDocumentos = {
     
     // Sube el archivo al servidor
     subirArchivo: function(file) {
+        console.log('Subiendo archivo:', file.name);
+        
         const dropzoneContainer = document.getElementById('dropzone-container');
         const dropzone = document.getElementById('dropzone');
         
@@ -247,25 +270,43 @@ const DetalleProyectoDocumentos = {
                 <i class="fas fa-spinner fa-spin fa-3x mb-3"></i>
                 <h5>Subiendo archivo...</h5>
                 <div class="progress mb-3">
-                    <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 50%"></div>
                 </div>
-                <p class="text-muted">${file.name} (${DetalleProyectoUI.formatearTamano(file.size)})</p>
+                <p class="text-muted">${file.name} (${this.formatearTamano(file.size)})</p>
             </div>
         `;
         
         // Crear FormData para enviar el archivo
         const formData = new FormData();
-        formData.append('documento_0', file);
-        formData.append('num_documentos', 1);
+        formData.append('documento_0', file); // Usar un nombre específico
         formData.append('proyecto_id', this.proyectoId);
+        
+        console.log('Enviando FormData con proyecto_id:', this.proyectoId);
         
         // Hacer petición AJAX
         fetch('api/subirDocumento.php', {
             method: 'POST',
             body: formData
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('Respuesta del servidor:', response);
+            return response.text(); // Primero obtener como texto para depurar
+        })
+        .then(text => {
+            console.log('Respuesta como texto:', text);
+            
+            // Intentar parsear como JSON
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.error('Error al parsear JSON:', e);
+                console.error('Texto recibido:', text);
+                throw new Error('La respuesta del servidor no es JSON válido');
+            }
+        })
         .then(data => {
+            console.log('Datos parseados:', data);
+            
             if (data.exito) {
                 // Recargar lista de documentos
                 this.cargarDocumentos();
@@ -277,14 +318,23 @@ const DetalleProyectoDocumentos = {
                 // Restaurar zona de subida
                 this.restaurarDropzone();
                 
-                DetalleProyectoUI.mostrarNotificacion('Archivo subido correctamente', 'success');
+                if (typeof DetalleProyectoUI !== 'undefined') {
+                    DetalleProyectoUI.mostrarNotificacion('Archivo subido correctamente', 'success');
+                } else {
+                    alert('Archivo subido correctamente');
+                }
             } else {
                 throw new Error(data.mensaje || 'Error al subir archivo');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            DetalleProyectoUI.mostrarNotificacion('Error al subir el archivo: ' + error.message, 'error');
+            
+            if (typeof DetalleProyectoUI !== 'undefined') {
+                DetalleProyectoUI.mostrarNotificacion('Error al subir el archivo: ' + error.message, 'error');
+            } else {
+                alert('Error al subir el archivo: ' + error.message);
+            }
             
             // Restaurar zona de subida en caso de error
             this.restaurarDropzone();
@@ -294,27 +344,37 @@ const DetalleProyectoDocumentos = {
     // Restaura la zona de dropzone a su estado original
     restaurarDropzone: function() {
         const dropzone = document.getElementById('dropzone');
-        dropzone.innerHTML = `
-            <div class="dz-message">
-                <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
-                <h5>Arrastra archivos aquí o haz clic para seleccionar</h5>
-                <p class="text-muted">Tipos permitidos: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, ZIP (Max. 10MB)</p>
-            </div>
-        `;
+        if (dropzone) {
+            dropzone.innerHTML = `
+                <div class="dz-message">
+                    <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
+                    <h5>Arrastra archivos aquí o haz clic para seleccionar</h5>
+                    <p class="text-muted">Tipos permitidos: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, ZIP (Max. 10MB)</p>
+                </div>
+            `;
+        }
     },
     
     // Mostrar confirmación para eliminar documento
     confirmarEliminar: function(documentoId) {
-        // Encontrar documento
-        const documento = this.documentos.find(doc => doc.id === documentoId);
+        console.log('Confirmar eliminar documento ID:', documentoId);
         
-        if (!documento) return;
+        // Encontrar documento
+        const documento = this.documentos.find(doc => doc.id == documentoId);
+        
+        if (!documento) {
+            console.error('Documento no encontrado:', documentoId);
+            return;
+        }
         
         // Guardar referencia al documento
         this.documentoSeleccionado = documento;
         
         // Actualizar modal
-        document.getElementById('documentoNombre').textContent = documento.nombre;
+        const documentoNombreElement = document.getElementById('documentoNombre');
+        if (documentoNombreElement) {
+            documentoNombreElement.textContent = documento.nombre;
+        }
         
         // Mostrar modal
         const modal = new bootstrap.Modal(document.getElementById('confirmarEliminarModal'));
@@ -323,7 +383,12 @@ const DetalleProyectoDocumentos = {
     
     // Eliminar documento
     eliminarDocumento: function() {
-        if (!this.documentoSeleccionado) return;
+        if (!this.documentoSeleccionado) {
+            console.error('No hay documento seleccionado para eliminar');
+            return;
+        }
+        
+        console.log('Eliminando documento:', this.documentoSeleccionado);
         
         // Hacer petición para eliminar del servidor
         fetch(`api/eliminarDocumento.php?id=${this.documentoSeleccionado.id}`, {
@@ -331,17 +396,29 @@ const DetalleProyectoDocumentos = {
         })
         .then(response => response.json())
         .then(data => {
+            console.log('Respuesta eliminar:', data);
+            
             if (data.exito) {
                 // Recargar lista de documentos
                 this.cargarDocumentos();
-                DetalleProyectoUI.mostrarNotificacion('Documento eliminado correctamente', 'success');
+                
+                if (typeof DetalleProyectoUI !== 'undefined') {
+                    DetalleProyectoUI.mostrarNotificacion('Documento eliminado correctamente', 'success');
+                } else {
+                    alert('Documento eliminado correctamente');
+                }
             } else {
                 throw new Error(data.mensaje || 'Error al eliminar documento');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            DetalleProyectoUI.mostrarNotificacion('Error al eliminar el documento: ' + error.message, 'error');
+            
+            if (typeof DetalleProyectoUI !== 'undefined') {
+                DetalleProyectoUI.mostrarNotificacion('Error al eliminar el documento: ' + error.message, 'error');
+            } else {
+                alert('Error al eliminar el documento: ' + error.message);
+            }
         });
         
         // Limpiar referencia
@@ -350,17 +427,27 @@ const DetalleProyectoDocumentos = {
     
     // Ver documento
     verDocumento: function(documentoId) {
-        // Encontrar documento
-        const documento = this.documentos.find(doc => doc.id === documentoId);
+        console.log('Ver documento ID:', documentoId);
         
-        if (!documento) return;
+        // Encontrar documento
+        const documento = this.documentos.find(doc => doc.id == documentoId);
+        
+        if (!documento) {
+            console.error('Documento no encontrado:', documentoId);
+            return;
+        }
         
         // Configurar modal
         const visorContenido = document.getElementById('visorContenido');
         const btnDescargar = document.getElementById('btnDescargarDocumento');
         
-        // Simular contenido según el tipo
-        if (documento.tipo.startsWith('image/')) {
+        if (!visorContenido || !btnDescargar) {
+            console.error('Elementos del modal no encontrados');
+            return;
+        }
+        
+        // Mostrar contenido según el tipo
+        if (documento.tipo && documento.tipo.startsWith('image/')) {
             // Es una imagen
             visorContenido.innerHTML = `
                 <div class="text-center py-3">
@@ -404,10 +491,15 @@ const DetalleProyectoDocumentos = {
     
     // Descargar documento
     descargarDocumento: function(documentoId) {
-        // Encontrar documento
-        const documento = this.documentos.find(doc => doc.id === documentoId);
+        console.log('Descargar documento ID:', documentoId);
         
-        if (!documento) return;
+        // Encontrar documento
+        const documento = this.documentos.find(doc => doc.id == documentoId);
+        
+        if (!documento) {
+            console.error('Documento no encontrado:', documentoId);
+            return;
+        }
         
         // Crear enlace temporal para descarga
         const link = document.createElement('a');
@@ -417,7 +509,9 @@ const DetalleProyectoDocumentos = {
         link.click();
         document.body.removeChild(link);
         
-        DetalleProyectoUI.mostrarNotificacion('Descarga iniciada...', 'info');
+        if (typeof DetalleProyectoUI !== 'undefined') {
+            DetalleProyectoUI.mostrarNotificacion('Descarga iniciada...', 'info');
+        }
     },
     
     // Devuelve el tipo de documento formateado
@@ -444,12 +538,23 @@ const DetalleProyectoDocumentos = {
             return 'fas fa-file-word text-primary';
         } else if (mimeType === 'application/vnd.ms-excel' || mimeType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') {
             return 'fas fa-file-excel text-success';
-        } else if (mimeType.startsWith('image/')) {
+        } else if (mimeType && mimeType.startsWith('image/')) {
             return 'fas fa-file-image text-info';
         } else if (mimeType === 'application/zip') {
             return 'fas fa-file-archive text-warning';
         } else {
             return 'fas fa-file text-secondary';
         }
+    },
+    
+    // Función auxiliar para formatear tamaño
+    formatearTamano: function(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 };

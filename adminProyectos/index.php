@@ -47,12 +47,16 @@ error_reporting(E_ALL);
         </div>
     </nav>
 
-    <div class="container-fluid mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Seguimiento de Proyectos</h1>
-            <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#leyendaModal">
-                <i class="fas fa-info-circle me-1"></i> Leyenda
-            </button>
+            <div class="d-flex gap-2">
+                <a href="estadisticas.php" class="btn btn-success">
+                    <i class="fas fa-chart-pie me-1"></i> Estadísticas
+                </a>
+                <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#leyendaModal">
+                    <i class="fas fa-info-circle me-1"></i> Leyenda
+                </button>
+            </div>
         </div>
         
         <div id="alertContainer"></div>

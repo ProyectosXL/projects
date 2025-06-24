@@ -172,6 +172,7 @@
     color: #0d6efd;
     background-color: transparent;
     border: 1px solid #0d6efd;
+    height: 1.9rem;
 }
 
 .btn-ver:hover {
@@ -183,6 +184,7 @@
     color: #198754;
     background-color: transparent;
     border: 1px solid #198754;
+    height: 1.9rem;
 }
 
 .btn-descargar:hover {
@@ -194,6 +196,7 @@
     color: #dc3545;
     background-color: transparent;
     border: 1px solid #dc3545;
+    height: 1.9rem;
 }
 
 .btn-eliminar:hover {

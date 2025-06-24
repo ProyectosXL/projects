@@ -157,8 +157,15 @@ function obtenerDocumentosProyecto($proyectoObj, $idProyecto) {
             // Formatear tamaño
             $tamano = formatearTamano($row['TamanoArchivo']);
             
-            // Construir la URL local para el archivo
-            $rutaArchivo = 'servirDocumento.php?proyecto=' . $idProyecto . '&archivo=' . urlencode($row['NombreArchivo']);
+            // Construir la URL local para el archivo - CORREGIDA
+            $rutaArchivo = 'api/servirDocumento.php?proyecto=' . $idProyecto . '&archivo=' . urlencode($row['NombreArchivo']);
+            
+            // Verificar que el archivo físico existe
+            $rutaFisica = __DIR__ . '/../documentos/' . $idProyecto . '/' . $row['NombreArchivo'];
+            $archivoExiste = file_exists($rutaFisica);
+            
+            // Log para depuración
+            error_log("Archivo: " . $row['NombreArchivo'] . " - Existe: " . ($archivoExiste ? 'SI' : 'NO') . " - Ruta: " . $rutaFisica);
             
             $documentos[] = array(
                 'id' => $row['ID'],
@@ -168,9 +175,13 @@ function obtenerDocumentosProyecto($proyectoObj, $idProyecto) {
                 'tamano' => $tamano,
                 'fecha' => $fecha,
                 'usuario' => 'Admin', // En una implementación real, obtendríamos el usuario que subió el archivo
-                'url' => $rutaArchivo
+                'url' => $rutaArchivo,
+                'existe' => $archivoExiste // Para depuración
             );
         }
+        
+        // Log del resultado
+        error_log("Documentos encontrados: " . count($documentos));
         
         // Responder con los documentos
         responderExito('Documentos obtenidos correctamente', array(
@@ -178,6 +189,7 @@ function obtenerDocumentosProyecto($proyectoObj, $idProyecto) {
         ));
         
     } catch (Exception $e) {
+        error_log('Error en obtenerDocumentosProyecto: ' . $e->getMessage());
         responderError('Error al obtener documentos: ' . $e->getMessage());
     }
 }

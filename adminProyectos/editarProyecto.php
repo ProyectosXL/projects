@@ -29,6 +29,7 @@ try {
     // Procesar el formulario si se envió
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Recoger los datos del formulario (incluyendo los nuevos campos editables)
+        // Recoger los datos del formulario (incluyendo URLRequerimiento)
         $datosActualizados = [
             // Campos nuevos editables
             'Desarrollo' => $_POST['Desarrollo'] ?? null,
@@ -37,6 +38,9 @@ try {
             'Pais' => $_POST['Pais'] ?? null,
             'Sector' => $_POST['Sector'] ?? null,
             'Funcionalidad' => $_POST['Funcionalidad'] ?? null,
+            
+            // Campo URL del Requerimiento
+            'URLRequerimiento' => $_POST['URLRequerimiento'] ?? null,
             
             // Campos que ya eran editables
             'InicioProgramado' => $_POST['InicioProgramado'] ?? null,
@@ -98,6 +102,7 @@ try {
     <!-- Custom CSS -->
     <link href="css/styles.css" rel="stylesheet">
     <link href="css/editarProyecto.css" rel="stylesheet">
+    <link href="css/notificaciones.css" rel="stylesheet">
     
 </head>
 <body>
@@ -300,6 +305,41 @@ try {
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- URL del Requerimiento (Nueva sección) -->
+            <div class="form-section">
+                <h3 class="section-title">URL del Requerimiento</h3>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="mb-3">
+                            <label for="URLRequerimiento" class="form-label">Enlace al Requerimiento</label>
+                            <input type="url" class="form-control" id="URLRequerimiento" name="URLRequerimiento" 
+                                   value="<?php echo htmlspecialchars($proyecto['URLRequerimiento'] ?? ''); ?>"
+                                   placeholder="https://ejemplo.com/requerimiento o enlace al documento">
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Ingrese la URL completa del requerimiento del proyecto (documento, ticket, etc.)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <?php if (!empty($proyecto['URLRequerimiento'])): ?>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="alert alert-info">
+                            <i class="fas fa-link me-2"></i>
+                            <strong>URL actual:</strong> 
+                            <a href="<?php echo htmlspecialchars($proyecto['URLRequerimiento']); ?>" 
+                               target="_blank" rel="noopener noreferrer">
+                                <?php echo htmlspecialchars($proyecto['URLRequerimiento']); ?>
+                                <i class="fas fa-external-link-alt ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
             </div>
             
             <!-- Cronograma (Editable) -->

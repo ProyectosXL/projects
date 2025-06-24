@@ -1,4 +1,3 @@
-
 $(document).ready(function() {
     // Validación de fechas: Fecha Límite debe ser posterior a Inicio Programado
     $('#InicioProgramado, #FechaLimite').on('change', function() {
@@ -6,8 +5,8 @@ $(document).ready(function() {
         const fechaLimite = $('#FechaLimite').val();
         
         if (inicioProgramado && fechaLimite && fechaLimite < inicioProgramado) {
-            alert('La Fecha Límite no puede ser anterior al Inicio Programado');
-            $('#FechaLimite').val('');
+            mostrarNotificacion('La Fecha Límite no puede ser anterior al Inicio Programado', 'warning');
+            $('#FechaLimite').val('').focus();
         }
     });
     
@@ -17,8 +16,8 @@ $(document).ready(function() {
         const finalizacionReal = $('#FinalizacionReal').val();
         
         if (inicioReal && finalizacionReal && finalizacionReal < inicioReal) {
-            alert('La Finalización Real no puede ser anterior al Inicio Real');
-            $('#FinalizacionReal').val('');
+            mostrarNotificacion('La Finalización Real no puede ser anterior al Inicio Real', 'warning');
+            $('#FinalizacionReal').val('').focus();
         }
     });
     
@@ -26,6 +25,7 @@ $(document).ready(function() {
     $('#EtapaProyecto').on('change', function() {
         if ($(this).val() === 'Finalizado') {
             $('#Estado').val('Terminado');
+            mostrarNotificacion('Estado actualizado automáticamente a "Terminado"', 'info');
         }
     });
     
@@ -38,6 +38,41 @@ $(document).ready(function() {
     $('#Desarrollo').on('input', function() {
         validarCampoRequerido($(this), 'El nombre del proyecto es requerido');
     });
+    
+    // Validación de URL del requerimiento (NUEVO)
+    $('#URLRequerimiento').on('input', function() {
+        validarURL($(this));
+    });
+    
+    // Función para validar URL (NUEVA)
+    function validarURL($campo) {
+        const url = $campo.val().trim();
+        const fieldId = $campo.attr('id');
+        
+        // Si está vacío, no es error (campo opcional)
+        if (!url) {
+            $campo.removeClass('is-invalid is-valid');
+            $('#' + fieldId + '-error-msg').remove();
+            return true;
+        }
+        
+        // Validar formato de URL
+        try {
+            new URL(url);
+            // URL válida
+            $campo.removeClass('is-invalid').addClass('is-valid');
+            $('#' + fieldId + '-error-msg').remove();
+            return true;
+        } catch (e) {
+            // URL inválida
+            $campo.removeClass('is-valid').addClass('is-invalid');
+            if ($('#' + fieldId + '-error-msg').length === 0) {
+                $('<div id="' + fieldId + '-error-msg" class="invalid-feedback">Ingrese una URL válida (ejemplo: https://ejemplo.com)</div>')
+                    .insertAfter($campo);
+            }
+            return false;
+        }
+    }
     
     // Función para validar que si hay comentario, debe haber autor
     function validarComentarioAutor() {
@@ -141,25 +176,45 @@ $(document).ready(function() {
     // Advertir al usuario si intenta navegar sin guardar
     $('a[href]').on('click', function(e) {
         if (formModificado && !formularioEnviado) {
-            const confirmacion = confirm('Tiene cambios sin guardar. ¿Está seguro que desea salir?');
-            if (!confirmacion) {
-                e.preventDefault();
-                return false;
-            }
+            e.preventDefault();
+            const enlace = $(this).attr('href');
+            
+            mostrarConfirmacion(
+                'Cambios sin guardar',
+                'Tiene cambios sin guardar. ¿Está seguro que desea salir sin guardar?',
+                'warning',
+                () => {
+                    // Si confirma, deshabilitar beforeunload y navegar
+                    $(window).off('beforeunload');
+                    formModificado = false;
+                    window.location.href = enlace;
+                },
+                () => {
+                    // Si cancela, no hacer nada
+                    console.log('Navegación cancelada por el usuario');
+                }
+            );
         }
     });
     
-    // Advertir si cierra el navegador/pestaña
-    $(window).on('beforeunload', function(e) {
-        if (formModificado && !formularioEnviado) {
-            const mensaje = 'Tiene cambios sin guardar. ¿Está seguro que desea salir?';
-            e.returnValue = mensaje;
-            return mensaje;
-        }
-    });
+    // Función para configurar el evento beforeunload
+    function setupBeforeUnload() {
+        $(window).on('beforeunload', function(e) {
+            if (formModificado && !formularioEnviado) {
+                const mensaje = 'Tiene cambios sin guardar. ¿Está seguro que desea salir?';
+                e.returnValue = mensaje;
+                return mensaje;
+            }
+        });
+    }
+    
+    // Configurar el evento beforeunload inicialmente
+    setupBeforeUnload();
     
     // Validar antes de enviar el formulario
     $('form').on('submit', function(e) {
+        e.preventDefault(); // Prevenir envío inmediato
+        
         let esValido = true;
         
         // Verificar campos requeridos
@@ -177,8 +232,12 @@ $(document).ready(function() {
             esValido = false;
         }
         
+        // Validación de URL (NUEVA)
+        if (!validarURL($('#URLRequerimiento'))) {
+            esValido = false;
+        }
+        
         if (!esValido) {
-            e.preventDefault();
             // Scroll al primer campo con error
             $('html, body').animate({
                 scrollTop: $('.is-invalid').first().offset().top - 100
@@ -187,32 +246,21 @@ $(document).ready(function() {
         }
         
         // Mostrar confirmación antes de guardar
-        const confirmacion = confirm('¿Está seguro que desea guardar los cambios en este proyecto?');
-        if (!confirmacion) {
-            e.preventDefault();
-            return false;
-        }
+        mostrarConfirmacion(
+            'Confirmar cambios',
+            '¿Está seguro que desea guardar los cambios en este proyecto?',
+            'question',
+            () => {
+                // Si confirma, proceder con el guardado
+                enviarFormulario();
+            },
+            () => {
+                // Si cancela, no hacer nada
+                console.log('Guardado cancelado por el usuario');
+            }
+        );
         
-        // Marcar que el formulario se está enviando
-        formularioEnviado = true;
-        formModificado = false;
-        
-        // Mostrar indicador de carga
-        const $submitBtn = $('button[type="submit"]');
-        const textoOriginal = $submitBtn.html();
-        $submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Guardando...');
-        
-        // Agregar clase de loading al formulario
-        $('form').addClass('loading');
-        
-        // Si por alguna razón el formulario tarda mucho, restaurar después de 30 segundos
-        setTimeout(function() {
-            $submitBtn.prop('disabled', false).html(textoOriginal);
-            $('form').removeClass('loading');
-            formularioEnviado = false;
-        }, 30000);
-        
-        return true;
+        return false; // Prevenir envío automático
     });
     
     // Función para validar selects (similar a la de Select2)
@@ -234,41 +282,145 @@ $(document).ready(function() {
         }
     }
     
-    // Función para mostrar notificaciones toast
-    function mostrarNotificacion(mensaje, tipo = 'info') {
+    // Función para enviar el formulario después de confirmación
+    function enviarFormulario() {
+        // Marcar que el formulario se está enviando
+        formularioEnviado = true;
+        formModificado = false;
+        
+        // Mostrar indicador de carga
+        const $submitBtn = $('button[type="submit"]');
+        const textoOriginal = $submitBtn.html();
+        $submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>Guardando...');
+        
+        // Agregar clase de loading al formulario
+        $('form').addClass('loading');
+        
+        // Mostrar notificación de proceso
+        mostrarNotificacion('Guardando cambios...', 'info');
+        
+        // Enviar formulario
+        $('form')[0].submit();
+        
+        // Si por alguna razón el formulario tarda mucho, restaurar después de 30 segundos
+        setTimeout(function() {
+            $submitBtn.prop('disabled', false).html(textoOriginal);
+            $('form').removeClass('loading');
+            formularioEnviado = false;
+        }, 30000);
+    }
+    
+    // Función para mostrar confirmaciones modernas
+    function mostrarConfirmacion(titulo, mensaje, tipo, onConfirm, onCancel) {
+        // Crear modal de confirmación dinámico
+        const modalId = 'confirmModal-' + Date.now();
+        const iconos = {
+            'question': 'fa-question-circle text-primary',
+            'warning': 'fa-exclamation-triangle text-warning',
+            'danger': 'fa-exclamation-circle text-danger',
+            'info': 'fa-info-circle text-info'
+        };
+        
+        const modalHTML = `
+            <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="fas ${iconos[tipo] || iconos.question} me-2"></i>
+                                ${titulo}
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p class="mb-0">${mensaje}</p>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="fas fa-times me-1"></i> Cancelar
+                            </button>
+                            <button type="button" class="btn btn-primary" id="btn-confirmar-${modalId}">
+                                <i class="fas fa-check me-1"></i> Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Agregar modal al DOM
+        $('body').append(modalHTML);
+        
+        // Mostrar modal
+        const modal = new bootstrap.Modal(document.getElementById(modalId));
+        modal.show();
+        
+        // Eventos
+        $(`#btn-confirmar-${modalId}`).on('click', function() {
+            modal.hide();
+            if (onConfirm) onConfirm();
+        });
+        
+        $(`#${modalId}`).on('hidden.bs.modal', function() {
+            // Limpiar modal del DOM
+            $(this).remove();
+            if (onCancel) onCancel();
+        });
+    }
+    
+    // Función para mostrar notificaciones toast mejoradas
+    function mostrarNotificacion(mensaje, tipo = 'info', duracion = 5000) {
         // Crear contenedor para notificaciones si no existe
-        if ($('#notificaciones-container').length === 0) {
-            $('body').append('<div id="notificaciones-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>');
+        if ($('#toast-container').length === 0) {
+            $('body').append(`
+                <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
+            `);
         }
         
         const iconos = {
-            'success': 'check-circle',
-            'error': 'exclamation-circle',
-            'warning': 'exclamation-triangle',
-            'info': 'info-circle'
+            'success': 'fa-check-circle',
+            'error': 'fa-exclamation-circle',
+            'warning': 'fa-exclamation-triangle',
+            'info': 'fa-info-circle'
         };
         
         const colores = {
-            'success': 'success',
-            'error': 'danger',
-            'warning': 'warning',
-            'info': 'info'
+            'success': 'text-bg-success',
+            'error': 'text-bg-danger',
+            'warning': 'text-bg-warning',
+            'info': 'text-bg-info'
         };
         
-        const notificacion = $(`
-            <div class="alert alert-${colores[tipo]} alert-dismissible fade show" role="alert">
-                <i class="fas fa-${iconos[tipo]} me-2"></i>
-                ${mensaje}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        const toastId = 'toast-' + Date.now();
+        
+        const toastHTML = `
+            <div id="${toastId}" class="toast ${colores[tipo]}" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="toast-header ${colores[tipo]}">
+                    <i class="fas ${iconos[tipo]} me-2"></i>
+                    <strong class="me-auto">
+                        ${tipo.charAt(0).toUpperCase() + tipo.slice(1)}
+                    </strong>
+                    <small>ahora</small>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+                </div>
+                <div class="toast-body">
+                    ${mensaje}
+                </div>
             </div>
-        `);
+        `;
         
-        $('#notificaciones-container').append(notificacion);
+        $('#toast-container').append(toastHTML);
         
-        // Auto-cerrar después de 5 segundos
-        setTimeout(function() {
-            notificacion.alert('close');
-        }, 5000);
+        // Mostrar toast
+        const toast = new bootstrap.Toast(document.getElementById(toastId), {
+            delay: duracion
+        });
+        toast.show();
+        
+        // Limpiar después de ocultar
+        document.getElementById(toastId).addEventListener('hidden.bs.toast', function() {
+            $(this).remove();
+        });
     }
     
     // Mejorar la experiencia de usuario con los selects
@@ -293,7 +445,7 @@ $(document).ready(function() {
     }
     
     // Debugging: Log cuando se inicializa el script
-    console.log('Script editarProyecto.js inicializado correctamente (versión simplificada)');
+    console.log('Script editarProyecto.js inicializado correctamente (con validación de URL)');
     
     // Función global para debug
     window.debugFormulario = function() {

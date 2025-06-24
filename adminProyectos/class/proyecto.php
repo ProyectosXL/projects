@@ -24,6 +24,9 @@ class Proyecto
             $error = print_r(sqlsrv_errors(), true);
             die("Error de conexión a la base de datos: " . $error);
         }
+        
+        // Verificar y crear tablas/campos necesarios
+        $this->verificarTablaHistorialProyectos();
     }
     
     /**
@@ -526,43 +529,51 @@ class Proyecto
                 throw new Exception("No hay conexión a la base de datos central");
             }
             
-            // Asegurar que los textos estén en UTF-8
-            $autor = $this->asegurarUTF8($autor);
-            $comentario = $this->asegurarUTF8($comentario);
+            // Limpiar caracteres especiales y asegurar UTF-8 - IGUAL QUE EN crearProyecto
+            $autorLimpio = $this->limpiarTextoUTF8($autor);
+            $comentarioLimpio = $this->limpiarTextoUTF8($comentario);
             
-            // Obtener la fecha actual en formato ANSI SQL
-            $fechaActual = date('Y-m-d H:i:s');
+            // Log para debugging
+            error_log('Comentario original: ' . $comentario);
+            error_log('Comentario limpio: ' . $comentarioLimpio);
+            error_log('Autor original: ' . $autor);
+            error_log('Autor limpio: ' . $autorLimpio);
             
-            // Preparar la consulta SQL para insertar el comentario
-            $sql = "INSERT INTO ProyectosComentarios (IdProyecto, Autor, Comentario, FechaCreacion) VALUES (?, ?, ?, ?)";
+            // Preparar la consulta SQL para insertar el comentario usando GETDATE()
+            $sql = "INSERT INTO ProyectosComentarios (IdProyecto, Autor, Comentario, FechaCreacion) 
+                    VALUES (?, ?, ?, GETDATE())";
             
             // Convertir a tipos adecuados para SQL Server
             $idProyectoInt = intval($idProyecto);
             
-            // Crear parámetros con tipos específicos para evitar conversiones implícitas
-            $params = array(
-                array($idProyectoInt, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_INT, SQLSRV_SQLTYPE_INT),
-                array($autor, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR(255)),
-                array($comentario, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_NVARCHAR('max')),
-                array($fechaActual, SQLSRV_PARAM_IN, SQLSRV_PHPTYPE_STRING(SQLSRV_ENC_CHAR), SQLSRV_SQLTYPE_DATETIME)
-            );
+            // Preparar parámetros sin tipado específico (más simple)
+            $params = array($idProyectoInt, $autorLimpio, $comentarioLimpio);
             
-            // Usar sqlsrv_prepare para preparar la consulta con los parámetros tipados
-            $stmt = sqlsrv_prepare($this->cid_central, $sql, $params);
+            // Ejecutar la consulta directamente
+            $stmt = sqlsrv_query($this->cid_central, $sql, $params);
             
-            if (!$stmt) {
-                throw new Exception("Error al preparar la consulta: " . print_r(sqlsrv_errors(), true));
+            if ($stmt === false) {
+                $errors = sqlsrv_errors();
+                error_log('Error SQL al insertar comentario: ' . print_r($errors, true));
+                throw new Exception("Error al agregar el comentario: " . print_r($errors, true));
             }
             
-            // Ejecutar la consulta preparada
-            if (!sqlsrv_execute($stmt)) {
-                throw new Exception("Error al agregar el comentario: " . print_r(sqlsrv_errors(), true));
-            }
+            // Verificar cuántas filas fueron afectadas
+            $filasAfectadas = sqlsrv_rows_affected($stmt);
             
-            return true;
+            // Liberar statement
+            sqlsrv_free_stmt($stmt);
+            
+            if ($filasAfectadas > 0) {
+                error_log("✅ Comentario insertado exitosamente. Filas afectadas: $filasAfectadas");
+                error_log("📅 Fecha insertada usando GETDATE() del servidor SQL");
+                return true;
+            } else {
+                throw new Exception('No se insertó ningún comentario');
+            }
             
         } catch (\Throwable $th) {
-            error_log("Error en agregarComentario: " . $th->getMessage());
+            error_log("❌ Error en agregarComentario: " . $th->getMessage());
             throw $th;
         }
     }
@@ -579,7 +590,10 @@ class Proyecto
             }
             
             // Preparar la consulta SQL para obtener los comentarios
-            $sql = "SELECT * FROM ProyectosComentarios WHERE IdProyecto = ? ORDER BY FechaCreacion DESC";
+            $sql = "SELECT Id, IdProyecto, Autor, Comentario, FechaCreacion 
+                    FROM ProyectosComentarios 
+                    WHERE IdProyecto = ? 
+                    ORDER BY FechaCreacion DESC";
             
             $params = array($idProyecto);
             
@@ -597,8 +611,17 @@ class Proyecto
                     $row['FechaCreacion'] = $row['FechaCreacion']->format('Y-m-d H:i:s');
                 }
                 
+                // Asegurar UTF-8 en la salida también
+                $row['Autor'] = $this->asegurarUTF8($row['Autor']);
+                $row['Comentario'] = $this->asegurarUTF8($row['Comentario']);
+                
+                // Log para verificar
+                error_log('Comentario leído: ' . $row['Comentario']);
+                
                 $comentarios[] = $row;
             }
+            
+            error_log('Total comentarios obtenidos: ' . count($comentarios));
             
             return $comentarios;
             
