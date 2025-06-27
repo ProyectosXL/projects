@@ -1,4 +1,8 @@
 
+<?php
+    session_start();
+?>  
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -43,9 +47,11 @@
             <a href="index.php" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i> Volver al listado
             </a>
-            <a href="editarProyecto.php" id="btnEditar" class="btn btn-primary">
-                <i class="fas fa-edit me-2"></i> Editar Proyecto
-            </a>
+            <?php if (isset($_SESSION['username'])): ?>
+                <a href="editarProyecto.php" id="btnEditar" class="btn btn-primary">
+                    <i class="fas fa-edit me-2"></i> Editar Proyecto
+                </a>
+            <?php endif; ?>
         </div>
         
         <div id="alertContainer"></div>
@@ -137,9 +143,11 @@
             <div class="tab-pane fade" id="history" role="tabpanel" aria-labelledby="history-tab">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5>Historial de Comentarios</h5>
-                    <a href="editarProyecto.php" id="btnAgregarComentario" class="btn btn-sm btn-primary">
-                        <i class="fas fa-plus me-1"></i> Agregar Comentario
-                    </a>
+                    <?php if (isset($_SESSION['username'])): ?>
+                        <a href="editarProyecto.php" id="btnAgregarComentario" class="btn btn-sm btn-primary">
+                            <i class="fas fa-plus me-1"></i> Agregar Comentario
+                        </a>
+                    <?php endif; ?>
                 </div>
                 
                 <div class="comentarios-container">
@@ -155,23 +163,27 @@
             <div class="tab-pane fade" id="files" role="tabpanel" aria-labelledby="files-tab">
                 <div class="d-flex justify-content-between align-items-center mb-3">
                     <h5>Documentos del Proyecto</h5>
-                    <button type="button" class="btn btn-sm btn-primary" id="btnSubirDocumento">
-                        <i class="fas fa-upload me-1"></i> Subir Documento
-                    </button>
+                    <?php if (isset($_SESSION['username'])): ?>
+                        <button type="button" class="btn btn-sm btn-primary" id="btnSubirDocumento">
+                            <i class="fas fa-upload me-1"></i> Subir Documento
+                        </button>
+                    <?php endif; ?>
                 </div>
                 
-                <div id="dropzone-container" class="dropzone-container mb-4 d-none">
-                    <div id="dropzone" class="dropzone">
-                        <div class="dz-message">
-                            <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
-                            <h5>Arrastra archivos aquí o haz clic para seleccionar</h5>
-                            <p class="text-muted">Tipos permitidos: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, ZIP (Max. 10MB)</p>
+                <?php if (isset($_SESSION['username'])): ?>
+                    <div id="dropzone-container" class="dropzone-container mb-4 d-none">
+                        <div id="dropzone" class="dropzone">
+                            <div class="dz-message">
+                                <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
+                                <h5>Arrastra archivos aquí o haz clic para seleccionar</h5>
+                                <p class="text-muted">Tipos permitidos: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG, ZIP (Max. 10MB)</p>
+                            </div>
+                        </div>
+                        <div class="text-end mt-2">
+                            <button type="button" class="btn btn-secondary btn-sm" id="btnCancelarSubida">Cancelar</button>
                         </div>
                     </div>
-                    <div class="text-end mt-2">
-                        <button type="button" class="btn btn-secondary btn-sm" id="btnCancelarSubida">Cancelar</button>
-                    </div>
-                </div>
+                <?php endif; ?>
                 
                 <div id="documentos-lista" class="table-responsive">
                     <table class="table table-striped">
@@ -182,13 +194,15 @@
                                 <th>Tamaño</th>
                                 <th>Fecha</th>
                                 <th>Subido por</th>
-                                <th>Acciones</th>
+                                <?php if (isset($_SESSION['username'])): ?>
+                                    <th>Acciones</th>
+                                <?php endif; ?>
                             </tr>
                         </thead>
                         <tbody id="documentos-container">
                             <!-- Aquí se cargarán los documentos dinámicamente -->
                             <tr class="sin-documentos">
-                                <td colspan="6" class="text-center py-4">
+                                <td colspan="<?php echo isset($_SESSION['username']) ? '6' : '5'; ?>" class="text-center py-4">
                                     <i class="fas fa-spinner fa-spin fa-3x mb-3"></i>
                                     <p>Cargando documentos...</p>
                                 </td>
@@ -201,24 +215,26 @@
     </div>
 
     <!-- Modal de Confirmación de Eliminación -->
-    <div class="modal fade" id="confirmarEliminarModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header bg-danger text-white">
-                    <h5 class="modal-title">Confirmar Eliminación</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <p>¿Está seguro que desea eliminar el documento "<span id="documentoNombre"></span>"?</p>
-                    <p class="mb-0 text-danger">Esta acción no se puede deshacer.</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-danger" id="btnConfirmarEliminar">Eliminar</button>
+    <?php if (isset($_SESSION['username'])): ?>
+        <div class="modal fade" id="confirmarEliminarModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">Confirmar Eliminación</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>¿Está seguro que desea eliminar el documento "<span id="documentoNombre"></span>"?</p>
+                        <p class="mb-0 text-danger">Esta acción no se puede deshacer.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-danger" id="btnConfirmarEliminar">Eliminar</button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+    <?php endif; ?>
 
     <!-- Modal de Visualización de Documento -->
     <div class="modal fade" id="visorDocumentoModal" tabindex="-1" aria-hidden="true">
@@ -289,8 +305,10 @@
             const proyectoId = urlParams.get('id');
             
             if (proyectoId) {
-                document.getElementById('btnEditar').href = `editarProyecto.php?id=${proyectoId}`;
-                document.getElementById('btnAgregarComentario').href = `editarProyecto.php?id=${proyectoId}#comentario`;
+                <?php if (isset($_SESSION['username'])): ?>
+                    document.getElementById('btnEditar').href = `editarProyecto.php?id=${proyectoId}`;
+                    document.getElementById('btnAgregarComentario').href = `editarProyecto.php?id=${proyectoId}#comentario`;
+                <?php endif; ?>
             }
         });
     </script>
