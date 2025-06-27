@@ -23,8 +23,8 @@ try {
     
     switch ($action) {
         case 'estados':
-            // Estados NUNCA se filtran - siempre sin parámetros
-            obtenerEstadisticasEstados($proyectoObj);
+            // Estados: NO filtrar por estado, SÍ por sector y líder
+            obtenerEstadisticasEstados($proyectoObj, $filtroSector, $filtroLider);
             break;
             
         case 'finalizados-por-año':
@@ -58,18 +58,33 @@ try {
 
 /**
  * Obtiene estadísticas de estados de proyectos
- * NUNCA se filtra - siempre muestra todos los estados
+ * Acepta filtros de sector y líder, pero NUNCA de estado
  */
-function obtenerEstadisticasEstados($proyectoObj) {
+function obtenerEstadisticasEstados($proyectoObj, $filtroSector = '', $filtroLider = '') {
     try {
         $conexion = $proyectoObj->getConexion();
         
         $sql = "SELECT Estado, COUNT(*) as cantidad 
                 FROM HistorialProyectos 
-                GROUP BY Estado 
-                ORDER BY cantidad DESC";
+                WHERE 1=1";
         
-        $stmt = sqlsrv_query($conexion, $sql);
+        $params = array();
+        
+        // Aplicar filtro de sector si se proporciona
+        if (!empty($filtroSector)) {
+            $sql .= " AND Sector = ?";
+            $params[] = $filtroSector;
+        }
+        
+        // Aplicar filtro de líder si se proporciona
+        if (!empty($filtroLider)) {
+            $sql .= " AND LiderProyecto = ?";
+            $params[] = $filtroLider;
+        }
+        
+        $sql .= " GROUP BY Estado ORDER BY cantidad DESC";
+        
+        $stmt = sqlsrv_query($conexion, $sql, $params);
         
         if ($stmt === false) {
             throw new Exception('Error al obtener estadísticas de estados: ' . print_r(sqlsrv_errors(), true));

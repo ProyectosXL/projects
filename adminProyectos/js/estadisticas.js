@@ -95,15 +95,22 @@ const EstadisticasManager = {
         $('.card').addClass('loading');
 
         // Cargar cada tipo de estadística
-        this.cargarEstadisticasEstados(); // Sin filtros - siempre muestra todos los estados
+        this.cargarEstadisticasEstados(filtroSector, filtroLider); // Con filtros de sector y líder (NO estado)
         this.cargarEstadisticasSectores(filtroLider, filtroEstado); // Con filtros de líder y estado
         this.cargarProyectosFinalizados(filtroSector, filtroLider, filtroEstado); // Con todos los filtros
     },
 
-    // Cargar estadísticas de estados (SIN FILTROS)
-    cargarEstadisticasEstados: function() {
-        // El gráfico de estados NUNCA se filtra, siempre muestra todos los estados
-        fetch('api/estadisticas.php?action=estados')
+    // Cargar estadísticas de estados (SIN FILTRO DE ESTADO, CON OTROS FILTROS)
+    cargarEstadisticasEstados: function(filtroSector, filtroLider) {
+        // El gráfico de estados NO se filtra por estado, pero SÍ por sector y líder
+        const params = new URLSearchParams({
+            action: 'estados',
+            sector: filtroSector || '',
+            lider: filtroLider || ''
+            // Nota: NO incluimos 'estado' en los parámetros
+        });
+
+        fetch(`api/estadisticas.php?${params}`)
             .then(response => response.json())
             .then(data => {
                 $('.card').removeClass('loading');
@@ -169,12 +176,44 @@ const EstadisticasManager = {
             });
     },
 
+    // Actualizar el resumen en las cards superiores - FUNCIÓN AÑADIDA
+    actualizarResumenEstados: function(datos) {
+        let totalProyectos = 0;
+        let terminados = 0;
+        let proceso = 0;
+        let pendientes = 0;
+
+        datos.forEach(item => {
+            totalProyectos += item.cantidad;
+            
+            switch(item.estado.toLowerCase()) {
+                case 'terminado':
+                    terminados = item.cantidad;
+                    break;
+                case 'proceso':
+                    proceso = item.cantidad;
+                    break;
+                case 'pendiente':
+                    pendientes = item.cantidad;
+                    break;
+            }
+        });
+
+        // Actualizar las cards
+        document.getElementById('totalProyectos').textContent = totalProyectos;
+        document.getElementById('proyectosTerminados').textContent = terminados;
+        document.getElementById('proyectosProceso').textContent = proceso;
+        document.getElementById('proyectosPendientes').textContent = pendientes;
+    },
+
     crearGraficoEstados: function(datos, total) {
         const ctx = document.getElementById('chartEstados').getContext('2d');
         if (chartEstados) chartEstados.destroy();
+        
         const labels = datos.map(item => item.estado);
         const values = datos.map(item => item.cantidad);
         const colors = datos.map(item => coloresEstados[item.estado] || '#6c757d');
+        
         chartEstados = new Chart(ctx, {
             type: 'doughnut',
             data: {
@@ -213,9 +252,11 @@ const EstadisticasManager = {
     crearGraficoSectores: function(datos, total) {
         const ctx = document.getElementById('chartSectores').getContext('2d');
         if (chartSectores) chartSectores.destroy();
+        
         const labels = datos.map(item => item.sector);
         const values = datos.map(item => item.cantidad);
         const colors = datos.map((item, index) => coloresSectores[index % coloresSectores.length]);
+        
         chartSectores = new Chart(ctx, {
             type: 'doughnut',
             data: {
@@ -254,6 +295,7 @@ const EstadisticasManager = {
     crearGraficoFinalizados: function(datos, usaFechaFinalizacion, estadoFiltrado) {
         const ctx = document.getElementById('chartFinalizados').getContext('2d');
         if (chartFinalizados) chartFinalizados.destroy();
+        
         const labels = datos.map(item => item.año.toString());
         const values = datos.map(item => item.cantidad);
 
@@ -336,26 +378,62 @@ const EstadisticasManager = {
     crearLeyenda: function(containerId, datos, colors) {
         const container = document.getElementById(containerId);
         container.innerHTML = '';
+        
         datos.forEach((item, index) => {
             const legendItem = document.createElement('div');
             legendItem.className = 'legend-item';
+            
             const colorBox = document.createElement('div');
             colorBox.className = 'legend-color';
             colorBox.style.backgroundColor = colors[index];
+            
             const text = document.createElement('span');
             text.className = 'legend-text';
             text.textContent = item.estado || item.sector;
+            
             const count = document.createElement('span');
             count.className = 'legend-count';
             count.textContent = item.cantidad;
+            
             legendItem.appendChild(colorBox);
             legendItem.appendChild(text);
             legendItem.appendChild(count);
             container.appendChild(legendItem);
         });
+    },
+
+    // Función para mostrar errores - FUNCIÓN AÑADIDA
+    mostrarError: function(mensaje) {
+        console.error(mensaje);
+        
+        // Crear alerta de error
+        const alertContainer = document.getElementById('alertContainer') || document.querySelector('.container-fluid');
+        if (alertContainer) {
+            const alert = document.createElement('div');
+            alert.className = 'alert alert-danger alert-dismissible fade show';
+            alert.innerHTML = `
+                <i class="fas fa-exclamation-circle me-2"></i>
+                ${mensaje}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            if (document.getElementById('alertContainer')) {
+                document.getElementById('alertContainer').appendChild(alert);
+            } else {
+                alertContainer.insertBefore(alert, alertContainer.firstChild);
+            }
+            
+            // Auto-cerrar después de 5 segundos
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
     }
 };
 
+// Inicializar cuando el documento esté listo
 $(document).ready(function() {
     EstadisticasManager.init();
     console.log('✅ Página de estadísticas cargada correctamente');

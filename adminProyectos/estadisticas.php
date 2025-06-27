@@ -140,7 +140,6 @@
                         <h5 class="mb-0">
                             <i class="fas fa-tasks me-2"></i>
                             Distribución por Estado
-                            <small class="text-light">(Sin filtros)</small>
                         </h5>
                     </div>
                     <div class="card-body">
