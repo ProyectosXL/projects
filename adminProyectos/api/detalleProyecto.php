@@ -78,9 +78,17 @@ function obtenerDetalleProyecto($proyectoObj, $idProyecto) {
                 $proyecto['clasePrioridad'] = 'prioridad-media';
             } elseif (strpos($prioridadLower, 'baja') !== false) {
                 $proyecto['clasePrioridad'] = 'prioridad-baja';
+            } elseif (strpos($prioridadLower, 'sin asignar') !== false || empty($proyecto['Prioridad'])) {
+                $proyecto['clasePrioridad'] = 'prioridad-sin-asignar';
+                if (empty($proyecto['Prioridad'])) {
+                    $proyecto['Prioridad'] = 'Sin asignar';
+                }
             } else {
-                $proyecto['clasePrioridad'] = '';
+                $proyecto['clasePrioridad'] = 'prioridad-sin-asignar';
             }
+        } else {
+            $proyecto['Prioridad'] = 'Sin asignar';
+            $proyecto['clasePrioridad'] = 'prioridad-sin-asignar';
         }
         
         // Responder con los datos del proyecto

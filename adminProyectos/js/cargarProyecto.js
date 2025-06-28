@@ -54,6 +54,19 @@ function inicializarSelect2() {
             }
         }
     });
+    
+    // Configuración específica para el campo de prioridad con valor por defecto
+    $('#prioridad').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Seleccione prioridad...',
+        allowClear: true
+    });
+    
+    // Establecer "Sin asignar" como opción por defecto si no hay nada seleccionado
+    if (!$('#prioridad').val()) {
+        $('#prioridad').val('Sin asignar').trigger('change');
+    }
 }
 
 /**
@@ -402,6 +415,11 @@ function limpiarFormulario() {
     
     // Recargar solicitantes
     cargarSolicitantes();
+    
+    // Establecer "Sin asignar" como valor por defecto para prioridad
+    setTimeout(() => {
+        $('#prioridad').val('Sin asignar').trigger('change');
+    }, 500);
     
     console.log('Formulario limpiado');
 }

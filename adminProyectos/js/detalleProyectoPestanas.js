@@ -175,4 +175,30 @@ const DetalleProyectoPestanas = {
         
         tabla.innerHTML = html;
     }
+    
 };
+
+        // Actualizar prioridad
+        const prioridadElement = document.getElementById('proyectoPrioridad');
+        if (prioridadElement) {
+            const prioridad = this.proyectoData.Prioridad || 'Sin asignar';
+            prioridadElement.textContent = prioridad;
+            
+            // Determinar clase CSS para prioridad
+            let clasePrioridad = '';
+            const prioridadLower = prioridad.toLowerCase();
+            
+            if (prioridadLower.includes('urgente')) {
+                clasePrioridad = 'prioridad-urgente';
+            } else if (prioridadLower.includes('alta')) {
+                clasePrioridad = 'prioridad-alta';
+            } else if (prioridadLower.includes('media')) {
+                clasePrioridad = 'prioridad-media';
+            } else if (prioridadLower.includes('baja')) {
+                clasePrioridad = 'prioridad-baja';
+            } else if (prioridadLower.includes('sin asignar') || !this.proyectoData.Prioridad) {
+                clasePrioridad = 'prioridad-sin-asignar';
+            }
+            
+            prioridadElement.className = `prioridad-badge ${clasePrioridad}`;
+        }

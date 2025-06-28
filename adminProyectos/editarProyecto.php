@@ -282,6 +282,7 @@ try {
                             <label for="Prioridad" class="form-label">Prioridad</label>
                             <select class="form-select" id="Prioridad" name="Prioridad">
                                 <option value="">Seleccione...</option>
+                                <option value="Sin asignar" <?php echo ($proyecto['Prioridad'] ?? '') === 'Sin asignar' ? 'selected' : ''; ?>>Sin asignar</option>
                                 <option value="Alta" <?php echo ($proyecto['Prioridad'] ?? '') === 'Alta' ? 'selected' : ''; ?>>Alta</option>
                                 <option value="Media" <?php echo ($proyecto['Prioridad'] ?? '') === 'Media' ? 'selected' : ''; ?>>Media</option>
                                 <option value="Baja" <?php echo ($proyecto['Prioridad'] ?? '') === 'Baja' ? 'selected' : ''; ?>>Baja</option>
@@ -454,6 +455,7 @@ try {
             console.log('Solicitante:', $('#Solicitante').val());
             console.log('Pais:', $('#Pais').val());
             console.log('Sector:', $('#Sector').val());
+            console.log('Prioridad:', $('#Prioridad').val());
             
             // Cambiar color del select cuando se selecciona algo
             $('select.form-select').on('change', function() {

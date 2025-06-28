@@ -59,6 +59,11 @@ body {
     vertical-align: baseline;
 }
 
+.prioridad-sin-asignar {
+    background-color: #6c757d !important;
+    color: white;
+}
+
 .prioridad-urgente {
     background-color: #d32f2f !important;
     color: white;

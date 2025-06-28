@@ -129,6 +129,23 @@ class Proyecto
             // Log para debugging
             error_log('Datos limpios para insertar: ' . print_r($datosLimpios, true));
             
+            // Mapear los campos a los nombres de la base de datos
+            $datosParaDB = [
+                'TipoPresentacion' => $datosLimpios['TipoPresentacion'],
+                'Desarrollo' => $datosLimpios['Desarrollo'],
+                'Solicitante' => $datosLimpios['Solicitante'],
+                'Prioridad' => !empty($datosLimpios['Prioridad']) ? $datosLimpios['Prioridad'] : 'Sin asignar',
+                'Pais' => $datosLimpios['Pais'],
+                'Sector' => $datosLimpios['Sector'],
+                'Funcionalidad' => $datosLimpios['Funcionalidad'],
+                
+                // Campos por defecto para proyectos nuevos
+                'Estado' => 'Pendiente',
+                'EtapaProyecto' => 'Pendiente',
+                'FechaCreacion' => date('Y-m-d'),
+                'PorcentajeAvance' => 0
+            ];
+            
             // SOLUCIÓN 1: Usar GETDATE() de SQL Server en lugar de fecha de PHP
             $sql = "INSERT INTO HistorialProyectos (
                         TipoPresentacion, 
@@ -145,13 +162,13 @@ class Proyecto
             
             // Preparar parámetros (sin fecha - usamos GETDATE())
             $params = array(
-                $datosLimpios['TipoPresentacion'],
-                $datosLimpios['Desarrollo'],
-                $datosLimpios['Solicitante'],
-                $datosLimpios['Prioridad'],
-                $datosLimpios['Pais'],
-                $datosLimpios['Sector'],
-                $datosLimpios['Funcionalidad'],
+                $datosParaDB['TipoPresentacion'],
+                $datosParaDB['Desarrollo'],
+                $datosParaDB['Solicitante'],
+                $datosParaDB['Prioridad'],
+                $datosParaDB['Pais'],
+                $datosParaDB['Sector'],
+                $datosParaDB['Funcionalidad'],
                 'Pendiente',
                 'Pendiente'
             );
@@ -179,7 +196,7 @@ class Proyecto
                 error_log("📅 Fecha insertada usando GETDATE() del servidor SQL");
                 
                 // Retornar el nombre del proyecto para el mensaje de éxito
-                return $datosLimpios['Desarrollo'];
+                return $datosParaDB['Desarrollo'];
             } else {
                 throw new Exception('No se insertó ningún registro');
             }
@@ -248,7 +265,8 @@ class Proyecto
                 FechaLimite DATE NULL,
                 InicioReal DATE NULL,
                 FinalizacionReal DATE NULL,
-                Prioridad NVARCHAR(50) NULL
+                Prioridad NVARCHAR(50) NULL,
+                URLRequerimiento NVARCHAR(500) NULL
             )";
             
             $resultCrear = sqlsrv_query($this->cid_central, $sqlCrear);
@@ -296,6 +314,27 @@ class Proyecto
                 
                 if ($resultAlter === false) {
                     throw new Exception('Error al agregar la columna Desarrollo: ' . print_r(sqlsrv_errors(), true));
+                }
+            }
+
+            // Verificar si la columna URLRequerimiento existe, y si no, agregarla
+            $sql = "SELECT COUNT(*) AS count FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = 'HistorialProyectos' AND COLUMN_NAME = 'URLRequerimiento'";
+            $result = sqlsrv_query($this->cid_central, $sql);
+            
+            if ($result === false) {
+                throw new Exception('Error al verificar la columna URLRequerimiento: ' . print_r(sqlsrv_errors(), true));
+            }
+            
+            $row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC);
+            
+            if ($row['count'] == 0) {
+                // Agregar la columna URLRequerimiento
+                $sqlAlter = "ALTER TABLE HistorialProyectos ADD URLRequerimiento NVARCHAR(500)";
+                $resultAlter = sqlsrv_query($this->cid_central, $sqlAlter);
+                
+                if ($resultAlter === false) {
+                    throw new Exception('Error al agregar la columna URLRequerimiento: ' . print_r(sqlsrv_errors(), true));
                 }
             }
         }
@@ -419,6 +458,11 @@ class Proyecto
                 // Formatear otras fechas si existen
                 $this->formatearFechas($row);
                 
+                // Asegurar que la prioridad tenga un valor por defecto
+                if (empty($row['Prioridad'])) {
+                    $row['Prioridad'] = 'Sin asignar';
+                }
+                
                 // Agregar porcentaje de avance según la etapa (usando EtapaProyecto)
                 $row['PorcentajeAvance'] = $this->calcularPorcentajeAvance($row['EtapaProyecto'] ?? '');
                 
@@ -460,6 +504,11 @@ class Proyecto
             
             // Formatear fechas
             $this->formatearFechas($row);
+            
+            // Asegurar que la prioridad tenga un valor por defecto
+            if (empty($row['Prioridad'])) {
+                $row['Prioridad'] = 'Sin asignar';
+            }
             
             // Agregar porcentaje de avance según la etapa
             $row['PorcentajeAvance'] = $this->calcularPorcentajeAvance($row['EtapaProyecto'] ?? '');

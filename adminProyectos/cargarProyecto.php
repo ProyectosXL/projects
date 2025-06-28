@@ -60,6 +60,7 @@
                     <label for="prioridad" class="form-label">Prioridad</label>
                     <select class="form-select select2" id="prioridad" name="prioridad" required>
                         <option value="">Seleccione prioridad</option>
+                        <option value="Sin asignar" selected>Sin asignar</option>
                         <option value="Alta">Alta</option>
                         <option value="Media">Media</option>
                         <option value="Baja">Baja</option>
