@@ -19,15 +19,23 @@
 <body>
     <div class="container">
         <form class="formulario-proyecto p-4 rounded shadow" id="formProyecto">
-            <h2 class="mb-4 text-primary">
-                <i class="bi bi-clipboard-data me-2"></i>Formulario de Proyecto
-            </h2>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="text-primary mb-0">
+                    <i class="bi bi-clipboard-data me-2"></i>Formulario de Proyecto
+                </h2>
+                <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#ayudaModal">
+                    <i class="bi bi-question-circle me-1"></i>Ayuda
+                </button>
+            </div>
             
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label for="id" class="form-label">ID Proyecto</label>
                     <div class="input-group">
                         <input type="text" class="form-control" id="id" name="id" placeholder="Generado automáticamente" disabled>
+                        <span class="input-group-text">
+                            <i class="bi bi-info-circle" title="El ID se genera automáticamente al guardar"></i>
+                        </span>
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -58,13 +66,16 @@
                 </div>
                 <div class="col-md-6">
                     <label for="prioridad" class="form-label">Prioridad</label>
-                    <select class="form-select select2" id="prioridad" name="prioridad" required>
-                        <option value="">Seleccione prioridad</option>
-                        <option value="Sin asignar" selected>Sin asignar</option>
-                        <option value="Alta">Alta</option>
-                        <option value="Media">Media</option>
-                        <option value="Baja">Baja</option>
-                    </select>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="prioridad" name="prioridad" value="Sin asignar" readonly>
+                        <span class="input-group-text">
+                            <i class="bi bi-lock-fill text-muted" title="La prioridad se establece automáticamente"></i>
+                        </span>
+                    </div>
+                    <div class="form-text text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        La prioridad se asignará posteriormente por el gerente del área
+                    </div>
                 </div>
             </div>
 
@@ -102,7 +113,11 @@
             <div class="mb-3">
                 <label for="funcionalidad" class="form-label">Funcionalidad</label>
                 <div class="input-group">
-                    <textarea class="form-control" id="funcionalidad" name="funcionalidad" rows="4" placeholder="Ingrese una breve descripción" required></textarea>
+                    <textarea class="form-control" id="funcionalidad" name="funcionalidad" rows="4" placeholder="Describa brevemente la funcionalidad o el objetivo del proyecto" required></textarea>
+                </div>
+                <div class="form-text text-muted">
+                    <i class="bi bi-lightbulb me-1"></i>
+                    Incluya el problema a resolver, funcionalidades principales y beneficios esperados
                 </div>
             </div>
 
@@ -126,6 +141,104 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary" id="btnConfirmarGuardar">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Ayuda -->
+    <div class="modal fade" id="ayudaModal" tabindex="-1" aria-labelledby="ayudaModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="ayudaModalLabel">
+                        <i class="bi bi-question-circle me-2"></i>Ayuda para Cargar Proyectos
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-12">
+                            <h6 class="fw-bold text-primary">
+                                <i class="bi bi-1-circle me-2"></i>Información General
+                            </h6>
+                            <ul class="list-unstyled ms-3 mb-4">
+                                <li class="mb-2">
+                                    <strong>ID Proyecto:</strong> Se genera automáticamente al guardar
+                                </li>
+                                <li class="mb-2">
+                                    <strong>Tipo/Presentación:</strong> Seleccione la categoría que mejor describa su proyecto
+                                </li>
+                                <li class="mb-2">
+                                    <strong>Nombre del Proyecto:</strong> Use un nombre descriptivo y claro
+                                </li>
+                            </ul>
+
+                            <h6 class="fw-bold text-primary">
+                                <i class="bi bi-2-circle me-2"></i>Configuración del Proyecto
+                            </h6>
+                            <ul class="list-unstyled ms-3 mb-4">
+                                <li class="mb-2">
+                                    <strong>Solicitante:</strong> Persona que solicita el proyecto (se carga desde el sistema de empleados)
+                                </li>
+                                <li class="mb-2">
+                                    <strong>Prioridad:</strong> 
+                                    <span class="badge bg-secondary">Sin asignar</span>
+                                    Se establece automáticamente. El gerente del área lo establecerá posteriormente
+                                </li>
+                                <li class="mb-2">
+                                    <strong>País:</strong> Región donde se implementará el proyecto
+                                </li>
+                                <li class="mb-2">
+                                    <strong>Sector:</strong> Área o departamento beneficiario del proyecto
+                                </li>
+                            </ul>
+
+                            <h6 class="fw-bold text-primary">
+                                <i class="bi bi-3-circle me-2"></i>Descripción del Proyecto
+                            </h6>
+                            <ul class="list-unstyled ms-3 mb-4">
+                                <li class="mb-2">
+                                    <strong>Funcionalidad:</strong> Describa:
+                                    <ul class="mt-2">
+                                        <li>El problema o necesidad a resolver</li>
+                                        <li>Las funcionalidades principales del proyecto</li>
+                                        <li>Los beneficios esperados</li>
+                                        <li>Cualquier requisito especial</li>
+                                    </ul>
+                                </li>
+                            </ul>
+
+                            <div class="alert alert-info">
+                                <h6 class="fw-bold">
+                                    <i class="bi bi-lightbulb me-2"></i>Consejos para una buena descripción:
+                                </h6>
+                                <ul class="mb-0">
+                                    <li>Sea específico y claro en la descripción</li>
+                                    <li>Mencione el impacto esperado en el negocio</li>
+                                    <li>Incluya cualquier información técnica relevante</li>
+                                    <li>Si es una mejora, explique la situación actual</li>
+                                </ul>
+                            </div>
+
+                            <div class="alert alert-warning">
+                                <h6 class="fw-bold">
+                                    <i class="bi bi-exclamation-triangle me-2"></i>Importante:
+                                </h6>
+                                <ul class="mb-0">
+                                    <li>Todos los campos marcados son obligatorios</li>
+                                    <li>Una vez guardado, el proyecto entrará en estado "Pendiente"</li>
+                                    <li>El líder de proyecto será asignado posteriormente</li>
+                                    <li>Podrá realizar un seguimiento del proyecto en la pantalla principal</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i>Cerrar
+                    </button>
                 </div>
             </div>
         </div>

@@ -20,6 +20,38 @@
     padding-bottom: 0.75rem;
 }
 
+/* ===== ESTILOS PARA CAMPO DE PRIORIDAD READONLY ===== */
+.form-control[readonly] {
+    background-color: #f8f9fa !important;
+    color: #6c757d !important;
+    border-color: #dee2e6 !important;
+    cursor: not-allowed;
+}
+
+.input-group .form-control[readonly] + .input-group-text {
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+    color: #6c757d;
+}
+
+.input-group .form-control[readonly] + .input-group-text i {
+    opacity: 0.7;
+}
+
+/* Estilo especial para el campo de prioridad */
+#prioridad[readonly] {
+    font-weight: 500;
+    background-color: #e3f2fd !important;
+    color: #1976d2 !important;
+    border-color: #90caf9 !important;
+}
+
+#prioridad[readonly] + .input-group-text {
+    background-color: #e3f2fd;
+    border-color: #90caf9;
+    color: #1976d2;
+}
+
 /* ===== ESTILOS PARA SELECT2 ===== */
 
 /* Contenedor principal de Select2 */
@@ -161,6 +193,34 @@
     clip-path: inset(50%) !important;
 }
 
+/* ===== ESTILOS PARA EL MODAL DE AYUDA ===== */
+.modal-header.bg-info {
+    background: linear-gradient(135deg, #17a2b8 0%, #20c997 100%) !important;
+}
+
+.modal-body h6.fw-bold {
+    color: #495057;
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.modal-body .bi {
+    color: #0d6efd;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+    border: 1px solid #b6d7ff;
+    color: #0c5460;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: 1px solid #ffeaa7;
+    color: #856404;
+}
+
 /* ===== ESTILOS GENERALES DEL FORMULARIO ===== */
 
 /* Campos requeridos */
@@ -241,6 +301,20 @@
 .btn-primary:disabled {
     transform: none;
     box-shadow: none;
+}
+
+.btn-outline-info {
+    color: #0dcaf0;
+    border-color: #0dcaf0;
+    transition: all 0.2s ease-in-out;
+}
+
+.btn-outline-info:hover {
+    color: #fff;
+    background-color: #0dcaf0;
+    border-color: #0dcaf0;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(13, 202, 240, 0.3);
 }
 
 /* Estados de validación mejorados */
@@ -367,6 +441,16 @@
     .btn {
         padding: 0.5rem 1rem;
     }
+    
+    .d-flex.justify-content-between.align-items-center {
+        flex-direction: column;
+        align-items: stretch !important;
+    }
+    
+    .d-flex.justify-content-between.align-items-center .btn {
+        margin-top: 1rem;
+        align-self: flex-end;
+    }
 }
 
 /* Mejorar accesibilidad */
@@ -397,10 +481,21 @@
 }
 
 /* Efectos hover adicionales */
-.form-control:hover:not(:focus):not(:disabled) {
+.form-control:hover:not(:focus):not(:disabled):not([readonly]) {
     border-color: #b0c4de;
 }
 
 .select2-container--bootstrap-5 .select2-selection--single:hover {
     border-color: #b0c4de !important;
+}
+
+/* Estilos especiales para texto de ayuda */
+.form-text {
+    margin-top: 0.25rem;
+    font-size: 0.875em;
+    color: #6c757d;
+}
+
+.form-text .bi {
+    color: #0d6efd;
 }

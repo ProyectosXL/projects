@@ -4,6 +4,7 @@
  * API para cargar proyectos
  * Maneja tanto la obtención de solicitantes como el guardado de proyectos
  * Los proyectos nuevos entran con Estado y EtapaProyecto = "Pendiente"
+ * La prioridad siempre se establece como "Sin asignar"
  */
 
 // Configuración para mostrar errores (solo para desarrollo)
@@ -89,11 +90,12 @@ function limpiarTextoUTF8($texto) {
 
 /**
  * Guarda un nuevo proyecto
+ * Actualizado para establecer automáticamente la prioridad como "Sin asignar"
  */
 function guardarProyecto($proyectoObj) {
     try {
-        // Validar datos requeridos
-        $camposRequeridos = ['tipo', 'desarrollo', 'solicitante', 'prioridad', 'pais', 'sector', 'funcionalidad'];
+        // Validar datos requeridos (sin incluir prioridad ya que es automática)
+        $camposRequeridos = ['tipo', 'desarrollo', 'solicitante', 'pais', 'sector', 'funcionalidad'];
         $datosProyecto = [];
         
         foreach ($camposRequeridos as $campo) {
@@ -113,7 +115,7 @@ function guardarProyecto($proyectoObj) {
             'TipoPresentacion' => $datosProyecto['tipo'],
             'Desarrollo' => $datosProyecto['desarrollo'],
             'Solicitante' => $datosProyecto['solicitante'],
-            'Prioridad' => $datosProyecto['prioridad'],
+            'Prioridad' => 'Sin asignar', // SIEMPRE establecido automáticamente
             'Pais' => $datosProyecto['pais'],
             'Sector' => $datosProyecto['sector'],
             'Funcionalidad' => $datosProyecto['funcionalidad'],
@@ -125,6 +127,9 @@ function guardarProyecto($proyectoObj) {
             'PorcentajeAvance' => 0
         ];
         
+        // Log para confirmar que la prioridad está establecida
+        error_log('Prioridad establecida automáticamente: ' . $datosParaDB['Prioridad']);
+        
         // Crear el proyecto - ahora retorna el nombre del proyecto
         $nombreProyecto = $proyectoObj->crearProyecto($datosParaDB);
         
@@ -132,14 +137,15 @@ function guardarProyecto($proyectoObj) {
             // Obtener un número de proyecto aproximado (últimos registros)
             $numeroProyecto = obtenerNumeroProyectoAproximado($proyectoObj, $nombreProyecto);
             
-            $mensajeExito = "Se ha cargado exitosamente el proyecto \"$nombreProyecto\"";
+            $mensajeExito = "Se ha cargado exitosamente el proyecto \"$nombreProyecto\" con prioridad Sin asignar";
             if ($numeroProyecto) {
-                $mensajeExito .= " con el número $numeroProyecto";
+                $mensajeExito .= " (ID: $numeroProyecto)";
             }
             
             responderExito($mensajeExito, [
                 'nombreProyecto' => $nombreProyecto,
-                'numeroProyecto' => $numeroProyecto
+                'numeroProyecto' => $numeroProyecto,
+                'prioridad' => 'Sin asignar'
             ]);
         } else {
             responderError('No se pudo guardar el proyecto');

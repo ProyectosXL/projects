@@ -1,7 +1,7 @@
 
 /**
  * Funcionalidad JavaScript para el formulario de carga de proyectos
- * Con Select2 y campo de prioridad
+ * Con Select2 y prioridad automática
  */
 
 $(document).ready(function() {
@@ -14,11 +14,11 @@ $(document).ready(function() {
     // Configurar eventos
     configurarEventos();
     
-    console.log('Formulario de carga inicializado con Select2');
+    console.log('Formulario de carga inicializado con prioridad automática');
 });
 
 /**
- * Inicializa Select2 en todos los selects
+ * Inicializa Select2 en todos los selects (excepto prioridad que ahora es readonly)
  */
 function inicializarSelect2() {
     $('.select2').select2({
@@ -54,19 +54,6 @@ function inicializarSelect2() {
             }
         }
     });
-    
-    // Configuración específica para el campo de prioridad con valor por defecto
-    $('#prioridad').select2({
-        theme: 'bootstrap-5',
-        width: '100%',
-        placeholder: 'Seleccione prioridad...',
-        allowClear: true
-    });
-    
-    // Establecer "Sin asignar" como opción por defecto si no hay nada seleccionado
-    if (!$('#prioridad').val()) {
-        $('#prioridad').val('Sin asignar').trigger('change');
-    }
 }
 
 /**
@@ -186,10 +173,6 @@ function configurarEventos() {
         validarSelect2($(this), 'Debe seleccionar un solicitante');
     });
     
-    $('#prioridad').on('select2:select select2:unselect', function() {
-        validarSelect2($(this), 'Debe seleccionar una prioridad');
-    });
-    
     $('#pais').on('select2:select select2:unselect', function() {
         validarSelect2($(this), 'Debe seleccionar un país');
     });
@@ -249,7 +232,7 @@ function validarSelect2($campo, mensaje) {
 }
 
 /**
- * Valida todo el formulario
+ * Valida todo el formulario (sin validar prioridad ya que es automática)
  */
 function validarFormulario() {
     let esValido = true;
@@ -264,10 +247,6 @@ function validarFormulario() {
     }
     
     if (!validarSelect2($('#solicitante'), 'Debe seleccionar un solicitante')) {
-        esValido = false;
-    }
-    
-    if (!validarSelect2($('#prioridad'), 'Debe seleccionar una prioridad')) {
         esValido = false;
     }
     
@@ -305,7 +284,7 @@ function mostrarConfirmacion() {
 
 /**
  * Guarda el proyecto en la base de datos
- * Versión con mensaje mejorado sin ID
+ * Versión con prioridad automática
  */
 function guardarProyecto() {
     // Validar el formulario una vez más
@@ -314,12 +293,12 @@ function guardarProyecto() {
         return;
     }
     
-    // Recopilar datos del formulario
+    // Recopilar datos del formulario (prioridad siempre será "Sin asignar")
     const datosProyecto = {
         tipo: $('#tipo').val(),
         desarrollo: $('#desarrollo').val(),
         solicitante: $('#solicitante').val(),
-        prioridad: $('#prioridad').val(),
+        prioridad: 'Sin asignar', // Valor fijo
         pais: $('#pais').val(),
         sector: $('#sector').val(),
         funcionalidad: $('#funcionalidad').val()
@@ -408,6 +387,9 @@ function limpiarFormulario() {
     // Limpiar Select2
     $('.select2').val(null).trigger('change');
     
+    // Restaurar prioridad a "Sin asignar" (campo readonly)
+    $('#prioridad').val('Sin asignar');
+    
     // Remover clases de validación
     $('.form-control, .form-select').removeClass('is-invalid is-valid');
     $('.select2-selection').removeClass('is-invalid is-valid');
@@ -415,11 +397,6 @@ function limpiarFormulario() {
     
     // Recargar solicitantes
     cargarSolicitantes();
-    
-    // Establecer "Sin asignar" como valor por defecto para prioridad
-    setTimeout(() => {
-        $('#prioridad').val('Sin asignar').trigger('change');
-    }, 500);
     
     console.log('Formulario limpiado');
 }
