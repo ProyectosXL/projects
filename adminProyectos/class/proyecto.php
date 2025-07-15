@@ -59,16 +59,12 @@ class Proyecto
     
     /**
      * Obtiene la lista de solicitantes desde la base de datos
-     * Devuelve solo el primer nombre y el apellido con formato Nombre Apellido
      */
     public function obtenerSolicitantes()
     {
         try {
-            // Query para obtener solicitantes usando NOMBRE y APELLIDO por separado
-            $sql = "SELECT L.NRO_LEGAJO, L.NOMBRE, L.APELLIDO  
-                FROM [TANGO-SUELDOS].LAKERS_CORP_SA.DBO.RO_V_LEGAJO L           
-                WHERE L.DESC_DEPARTAMENTO IN ('ADMINISTRACION','COMERCIALIZACION','LOGISTICA')
-                ORDER BY L.NOMBRE, L.APELLIDO";
+            // Query actualizado para obtener solicitantes desde RO_USUARIOS_CARGA_PROYECTOS
+            $sql = "SELECT NOMBRE_APELLIDO, MAIL FROM RO_USUARIOS_CARGA_PROYECTOS ORDER BY NOMBRE_APELLIDO";
             
             // Ejecutar consulta
             $result = sqlsrv_query($this->cid_central, $sql);
@@ -80,20 +76,11 @@ class Proyecto
             // Recopilar resultados
             $solicitantes = array();
             while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
-                // Obtener solo el primer nombre dividiendo por espacios y tomando la primera parte
-                $primerNombre = explode(' ', trim($row['NOMBRE']))[0];
-                
-                // Convertir a formato Nombre Apellido (primera letra mayúscula, resto minúscula)
-                $nombreFormateado = ucfirst(strtolower($primerNombre));
-                $apellidoFormateado = ucfirst(strtolower($row['APELLIDO']));
-                
-                // Formar el nombre completo con el primer nombre y el apellido
-                $nombreCompleto = $nombreFormateado . ' ' . $apellidoFormateado;
-                
                 $solicitantes[] = array(
-                    'NRO_LEGAJO' => $row['NRO_LEGAJO'],
-                    'APELLIDO_Y_NOMBRE' => $nombreCompleto,
-                    'NOMBRE_FORMATEADO' => $nombreCompleto // Para guardar en la base de datos
+                    'NOMBRE_APELLIDO' => $row['NOMBRE_APELLIDO'],
+                    'MAIL' => $row['MAIL'],
+                    'APELLIDO_Y_NOMBRE' => $row['NOMBRE_APELLIDO'], // Para mantener compatibilidad
+                    'NOMBRE_FORMATEADO' => $row['NOMBRE_APELLIDO']   // Para guardar en la base de datos
                 );
             }
             

@@ -102,7 +102,7 @@ function cargarSolicitantes() {
                     console.warn('No se encontraron solicitantes en la respuesta');
                     $('#solicitante').append('<option value="">No hay solicitantes disponibles</option>');
                 }
-                
+                                
                 // Reinicializar Select2
                 $('#solicitante').select2({
                     theme: 'bootstrap-5',

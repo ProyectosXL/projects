@@ -61,7 +61,7 @@
                     <label for="solicitante" class="form-label">Solicitante</label>
                     <select class="form-select select2" id="solicitante" name="solicitante" required>
                         <option value="">Seleccione solicitante</option>
-                        <!-- Se cargará dinámicamente desde JS -->
+                        <!-- Se cargará dinámicamente desde JS con email en tooltip -->
                     </select>
                 </div>
                 <div class="col-md-6">
@@ -97,13 +97,12 @@
                         <option value="Administración">Administración</option>
                         <option value="Casa central">Casa central</option>
                         <option value="Comercial">Comercial</option>
-                        <option value="Control de stock">Control de stock</option>
                         <option value="Dirección">Dirección</option>
                         <option value="Ecommerce">Ecommerce</option>
                         <option value="Gerencia">Gerencia</option>
                         <option value="Locales propios">Locales propios</option>
                         <option value="Logística">Logística</option>
-                        <option value="Proyectos">Proyectos</option>
+                        <option value="Proyectos/Ctrl. de stock">Proyectos/Ctrl. de stock</option>
                         <option value="Recursos humanos">Recursos humanos</option>
                         <option value="Sistemas">Sistemas</option>
                     </select>

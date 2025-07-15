@@ -191,7 +191,8 @@ try {
                                         $textoSolicitante = $solicitante['APELLIDO_Y_NOMBRE'];
                                         $selected = (isset($proyecto['Solicitante']) && $proyecto['Solicitante'] === $valorSolicitante) ? 'selected' : '';
                                         ?>
-                                        <option value="<?php echo htmlspecialchars($valorSolicitante); ?>" <?php echo $selected; ?>>
+                                        <option value="<?php echo htmlspecialchars($valorSolicitante); ?>" <?php echo $selected; ?> 
+                                                title="<?php echo htmlspecialchars($solicitante['MAIL']); ?>">
                                             <?php echo htmlspecialchars($textoSolicitante); ?>
                                         </option>
                                     <?php endforeach; ?>
@@ -227,7 +228,7 @@ try {
                                 <option value="Gerencia" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Gerencia') ? 'selected' : ''; ?>>Gerencia</option>
                                 <option value="Locales propios" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Locales propios') ? 'selected' : ''; ?>>Locales propios</option>
                                 <option value="Logística" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Logística') ? 'selected' : ''; ?>>Logística</option>
-                                <option value="Proyectos" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Proyectos') ? 'selected' : ''; ?>>Proyectos</option>
+                                <option value="Proyectos" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Proyectos/Ctrl. de stock') ? 'selected' : ''; ?>>Proyectos/Ctrl. de stock</option>
                                 <option value="Recursos humanos" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Recursos humanos') ? 'selected' : ''; ?>>Recursos humanos</option>
                                 <option value="Sistemas" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Sistemas') ? 'selected' : ''; ?>>Sistemas</option>
                             </select>
