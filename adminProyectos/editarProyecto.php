@@ -284,6 +284,7 @@ try {
                             <select class="form-select" id="Prioridad" name="Prioridad">
                                 <option value="">Seleccione...</option>
                                 <option value="Sin asignar" <?php echo ($proyecto['Prioridad'] ?? '') === 'Sin asignar' ? 'selected' : ''; ?>>Sin asignar</option>
+                                <option value="Urgente" <?php echo ($proyecto['Prioridad'] ?? '') === 'Urgente' ? 'selected' : ''; ?>>Urgente</option>
                                 <option value="Alta" <?php echo ($proyecto['Prioridad'] ?? '') === 'Alta' ? 'selected' : ''; ?>>Alta</option>
                                 <option value="Media" <?php echo ($proyecto['Prioridad'] ?? '') === 'Media' ? 'selected' : ''; ?>>Media</option>
                                 <option value="Baja" <?php echo ($proyecto['Prioridad'] ?? '') === 'Baja' ? 'selected' : ''; ?>>Baja</option>

@@ -29,6 +29,10 @@ try {
         case 'obtenerSolicitantes':
             obtenerSolicitantes($proyectoObj);
             break;
+
+        case 'obtenerSectores':
+            obtenerSectores($proyectoObj);
+            break;
             
         case 'guardarProyecto':
             guardarProyecto($proyectoObj);
@@ -182,6 +186,39 @@ function obtenerNumeroProyectoAproximado($proyectoObj, $nombreProyecto) {
     } catch (Exception $e) {
         error_log('Error al obtener número de proyecto: ' . $e->getMessage());
         return null;
+    }
+}
+
+/**
+ * Obtiene la lista de sectores dinámicamente
+ */
+function obtenerSectores($proyectoObj) {
+    try {
+        $conexion = $proyectoObj->getConexion();
+        
+        $sql = "SELECT DISTINCT(Sector) as Sector FROM HistorialProyectos WHERE Sector IS NOT NULL ORDER BY Sector";
+        $result = sqlsrv_query($conexion, $sql);
+        
+        if ($result === false) {
+            throw new Exception('Error al obtener sectores: ' . print_r(sqlsrv_errors(), true));
+        }
+        
+        $sectores = array();
+        while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
+            $sectores[] = $row['Sector'];
+        }
+        
+        if (count($sectores) > 0) {
+            responderExito('Sectores obtenidos correctamente', [
+                'sectores' => $sectores
+            ]);
+        } else {
+            responderError('No se pudieron obtener los sectores');
+        }
+        
+    } catch (Exception $e) {
+        error_log('Error en obtenerSectores: ' . $e->getMessage());
+        responderError('Error al obtener sectores: ' . $e->getMessage());
     }
 }
 

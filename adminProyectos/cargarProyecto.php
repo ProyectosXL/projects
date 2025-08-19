@@ -93,18 +93,7 @@
                     <label for="sector" class="form-label">Sector</label>
                     <select class="form-select select2" id="sector" name="sector" required>
                         <option value="">Seleccione sector</option>
-                        <option value="Abastecimiento">Abastecimiento</option>
-                        <option value="Administración">Administración</option>
-                        <option value="Casa central">Casa central</option>
-                        <option value="Comercial">Comercial</option>
-                        <option value="Dirección">Dirección</option>
-                        <option value="Ecommerce">Ecommerce</option>
-                        <option value="Gerencia">Gerencia</option>
-                        <option value="Locales propios">Locales propios</option>
-                        <option value="Logística">Logística</option>
-                        <option value="Proyectos/Ctrl. de stock">Proyectos/Ctrl. de stock</option>
-                        <option value="Recursos humanos">Recursos humanos</option>
-                        <option value="Sistemas">Sistemas</option>
+                        <!-- Se cargará dinámicamente desde JS -->
                     </select>
                 </div>
             </div>

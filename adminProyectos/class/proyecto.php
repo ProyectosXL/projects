@@ -733,61 +733,91 @@ class Proyecto
     }
     
     public function obtenerFiltros() {
-        $filtros = [
-            'sectores' => [],
-            'estados' => [],
-            'etapas' => [],
-            'lideres' => []
-        ];
-        
-        try {
-            // Obtener sectores únicos
-            $sql = "SELECT DISTINCT Sector FROM HistorialProyectos WHERE Sector IS NOT NULL ORDER BY Sector";
-            $result = sqlsrv_query($this->cid_central, $sql);
-            if ($result === false) {
-                throw new Exception("Error al obtener sectores: " . print_r(sqlsrv_errors(), true));
-            }
-            while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
-                $filtros['sectores'][] = $row['Sector'];
-            }
-            
-            // Obtener estados únicos
-            $sql = "SELECT DISTINCT Estado FROM HistorialProyectos WHERE Estado IS NOT NULL ORDER BY Estado";
-            $result = sqlsrv_query($this->cid_central, $sql);
-            if ($result === false) {
-                throw new Exception("Error al obtener estados: " . print_r(sqlsrv_errors(), true));
-            }
-            while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
-                $filtros['estados'][] = $row['Estado'];
-            }
-            
-            // Obtener etapas únicas
-            $sql = "SELECT DISTINCT EtapaProyecto FROM HistorialProyectos WHERE EtapaProyecto IS NOT NULL ORDER BY EtapaProyecto";
-            $result = sqlsrv_query($this->cid_central, $sql);
-            if ($result === false) {
-                throw new Exception("Error al obtener etapas: " . print_r(sqlsrv_errors(), true));
-            }
-            while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
-                $filtros['etapas'][] = $row['EtapaProyecto'];
-            }
-            
-            // Obtener líderes de proyecto únicos
-            $sql = "SELECT DISTINCT LiderProyecto FROM HistorialProyectos WHERE LiderProyecto IS NOT NULL ORDER BY LiderProyecto";
-            $result = sqlsrv_query($this->cid_central, $sql);
-            if ($result === false) {
-                throw new Exception("Error al obtener líderes: " . print_r(sqlsrv_errors(), true));
-            }
-            while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
-                $filtros['lideres'][] = $row['LiderProyecto'];
-            }
-            
-            return $filtros;
-            
-        } catch (\Throwable $th) {
-            error_log("Error en obtenerFiltros: " . $th->getMessage());
-            throw $th;
+    $filtros = [
+        'sectores' => [],
+        'estados' => [],
+        'etapas' => [],
+        'lideres' => [],
+        'prioridades' => []
+    ];
+    
+    try {
+        // Obtener sectores únicos (NUEVO QUERY)
+        $sql = "SELECT DISTINCT(Sector) as Sector FROM HistorialProyectos WHERE Sector IS NOT NULL ORDER BY Sector";
+        $result = sqlsrv_query($this->cid_central, $sql);
+        if ($result === false) {
+            throw new Exception("Error al obtener sectores: " . print_r(sqlsrv_errors(), true));
         }
+        while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
+            $filtros['sectores'][] = $row['Sector'];
+        }
+        
+        // Obtener estados únicos
+        $sql = "SELECT DISTINCT Estado FROM HistorialProyectos WHERE Estado IS NOT NULL ORDER BY Estado";
+        $result = sqlsrv_query($this->cid_central, $sql);
+        if ($result === false) {
+            throw new Exception("Error al obtener estados: " . print_r(sqlsrv_errors(), true));
+        }
+        while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
+            $filtros['estados'][] = $row['Estado'];
+        }
+        
+        // Obtener etapas únicas
+        $sql = "SELECT DISTINCT EtapaProyecto FROM HistorialProyectos WHERE EtapaProyecto IS NOT NULL ORDER BY EtapaProyecto";
+        $result = sqlsrv_query($this->cid_central, $sql);
+        if ($result === false) {
+            throw new Exception("Error al obtener etapas: " . print_r(sqlsrv_errors(), true));
+        }
+        while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
+            $filtros['etapas'][] = $row['EtapaProyecto'];
+        }
+        
+        // Obtener líderes de proyecto únicos
+        $sql = "SELECT DISTINCT LiderProyecto FROM HistorialProyectos WHERE LiderProyecto IS NOT NULL ORDER BY LiderProyecto";
+        $result = sqlsrv_query($this->cid_central, $sql);
+        if ($result === false) {
+            throw new Exception("Error al obtener líderes: " . print_r(sqlsrv_errors(), true));
+        }
+        while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
+            $filtros['lideres'][] = $row['LiderProyecto'];
+        }
+        
+        // Obtener prioridades únicas (SOLUCIONADO - sin ORDER BY personalizado)
+        $sql = "SELECT DISTINCT Prioridad FROM HistorialProyectos WHERE Prioridad IS NOT NULL";
+        $result = sqlsrv_query($this->cid_central, $sql);
+        if ($result === false) {
+            throw new Exception("Error al obtener prioridades: " . print_r(sqlsrv_errors(), true));
+        }
+        
+        $prioridadesDB = [];
+        while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
+            $prioridadesDB[] = $row['Prioridad'];
+        }
+        
+        // Ordenar las prioridades manualmente en PHP
+        $ordenPrioridades = ['Urgente', 'Alta', 'Media', 'Baja', 'Sin asignar'];
+        
+        // Primero agregar las prioridades en el orden deseado si existen
+        foreach ($ordenPrioridades as $prioridad) {
+            if (in_array($prioridad, $prioridadesDB)) {
+                $filtros['prioridades'][] = $prioridad;
+            }
+        }
+        
+        // Luego agregar cualquier prioridad adicional que no esté en el orden predefinido
+        foreach ($prioridadesDB as $prioridad) {
+            if (!in_array($prioridad, $filtros['prioridades'])) {
+                $filtros['prioridades'][] = $prioridad;
+            }
+        }
+        
+        return $filtros;
+        
+    } catch (\Throwable $th) {
+        error_log("Error en obtenerFiltros: " . $th->getMessage());
+        throw $th;
     }
+}
     
     private function formatearFechas(&$row) {
         // Formatear todas las fechas en el array

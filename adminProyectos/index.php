@@ -136,21 +136,21 @@ error_reporting(E_ALL);
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
                         <label for="filtroSector" class="form-label">Sector</label>
                         <select class="form-select select-multiple" id="filtroSector" multiple>
                             <!-- Opciones se cargarán dinámicamente -->
                         </select>
                         <div class="form-text">Ctrl+Click para seleccionar múltiples</div>
                     </div>
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
                         <label for="filtroEstado" class="form-label">Estado</label>
                         <select class="form-select select-multiple" id="filtroEstado" multiple>
                             <!-- Opciones se cargarán dinámicamente -->
                         </select>
                         <div class="form-text">Ctrl+Click para seleccionar múltiples</div>
                     </div>
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
                         <label for="filtroEtapa" class="form-label">Etapa</label>
                         <select class="form-select select-multiple" id="filtroEtapa" multiple>
                             <!-- Opciones se cargarán dinámicamente -->
@@ -160,6 +160,13 @@ error_reporting(E_ALL);
                     <div class="col-md-3 mb-3">
                         <label for="filtroLider" class="form-label">Líder de Proyecto</label>
                         <select class="form-select select-multiple" id="filtroLider" multiple>
+                            <!-- Opciones se cargarán dinámicamente -->
+                        </select>
+                        <div class="form-text">Ctrl+Click para seleccionar múltiples</div>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label for="filtroPrioridad" class="form-label">Prioridad</label>
+                        <select class="form-select select-multiple" id="filtroPrioridad" multiple>
                             <!-- Opciones se cargarán dinámicamente -->
                         </select>
                         <div class="form-text">Ctrl+Click para seleccionar múltiples</div>
@@ -240,7 +247,7 @@ error_reporting(E_ALL);
                     
                     <h6 class="fw-bold mt-4">Prioridades:</h6>
                     <div class="mb-3 d-flex flex-wrap gap-2">
-                        <span class="prioridad-badge prioridad-sin-asignar">Sin asignar</span>
+                        <span class="prioridad-badge prioridad-sin-asignar">Sin asignarfacc</span>
                         <span class="prioridad-badge prioridad-baja">Baja</span>
                         <span class="prioridad-badge prioridad-media">Media</span>
                         <span class="prioridad-badge prioridad-alta">Alta</span>

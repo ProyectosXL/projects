@@ -46,7 +46,7 @@ session_start();
 
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <a href="index.php" class="btn btn-outline-secondary">
+            <a href="#" class="btn btn-outline-secondary" id="btnVolver">
                 <i class="fas fa-arrow-left me-2"></i> Volver al listado
             </a>
             <?php if (isset($_SESSION['username'])): ?>
@@ -313,6 +313,21 @@ session_start();
                 <?php endif; ?>
             }
         });
+
+        // Configurar botón de volver para mantener filtros
+        document.getElementById('btnVolver').addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Verificar si hay filtros guardados en sessionStorage
+            const filtrosGuardados = sessionStorage.getItem('filtrosProyectos');
+            
+            if (filtrosGuardados) {
+                window.location.href = 'index.php?aplicar_filtros=true';
+            } else {
+                window.location.href = 'index.php';
+            }
+        });
+        
     </script>
 </body>
 </html>

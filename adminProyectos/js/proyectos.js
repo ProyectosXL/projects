@@ -26,7 +26,6 @@ const ProyectosManager = {
         this.setupEventListeners();
     },
     
-    // Carga las opciones de filtros desde el servidor
     cargarFiltros: function() {
         console.log('Cargando filtros...');
         
@@ -45,6 +44,10 @@ const ProyectosManager = {
                 this.poblarSelectFiltros('filtroEstado', data.estados);
                 this.poblarSelectFiltros('filtroEtapa', data.etapas);
                 this.poblarSelectFiltros('filtroLider', data.lideres);
+                this.poblarSelectFiltros('filtroPrioridad', data.prioridades); // NUEVO
+                
+                // Restaurar filtros si vienen de otra página
+                this.restaurarFiltrosGuardados();
             })
             .catch(error => {
                 console.error('Error en cargarFiltros:', error);
@@ -161,10 +164,19 @@ const ProyectosManager = {
                     orderable: false,
                     className: 'text-center',
                     render: function(data, type, row) {
-                        // Corrección: Usar atributo data-id para el ID del proyecto
-                        return `<button class="btn btn-info btn-sm btn-detalle" data-id="${row.ID}">
-                                    <i class="fas fa-info-circle"></i>
-                                </button>`;
+                        let acciones = `<button class="btn btn-info btn-sm btn-detalle" data-id="${row.ID}">
+                                        <i class="fas fa-info-circle"></i>
+                                    </button>`;
+                        
+                        // Agregar ícono para URL Requerimiento si existe
+                        if (row.URLRequerimiento && row.URLRequerimiento.trim() !== '') {
+                            acciones += ` <a href="${row.URLRequerimiento}" target="_blank" rel="noopener noreferrer" 
+                                            class="btn btn-sm btn-outline-danger" title="Ver Requerimiento">
+                                            <i class="fas fa-external-link-alt"></i>
+                                        </a>`;
+                        }
+                        
+                        return acciones;
                     }
                 }
             ],
@@ -214,14 +226,17 @@ const ProyectosManager = {
         }
     },
     
-    // Aplica los filtros seleccionados (ACTUALIZADO para filtros múltiples)
     aplicarFiltros: function() {
         const sectores = Array.from(document.getElementById('filtroSector')?.selectedOptions || []).map(opt => opt.value);
         const estados = Array.from(document.getElementById('filtroEstado')?.selectedOptions || []).map(opt => opt.value);
         const etapas = Array.from(document.getElementById('filtroEtapa')?.selectedOptions || []).map(opt => opt.value);
         const lideres = Array.from(document.getElementById('filtroLider')?.selectedOptions || []).map(opt => opt.value);
+        const prioridades = Array.from(document.getElementById('filtroPrioridad')?.selectedOptions || []).map(opt => opt.value); // NUEVO
         
-        console.log('Aplicando filtros múltiples:', { sectores, estados, etapas, lideres });
+        console.log('Aplicando filtros múltiples:', { sectores, estados, etapas, lideres, prioridades });
+        
+        // Guardar filtros
+        this.guardarFiltros();
         
         // Limpiar filtros previos
         $.fn.dataTable.ext.search.length = 0;
@@ -229,17 +244,18 @@ const ProyectosManager = {
         // Crear filtros personalizados para DataTables
         $.fn.dataTable.ext.search.push(
             (settings, data, dataIndex) => {
-                // Los índices deben coincidir con el orden de las columnas en la tabla HTML
                 const filaSector = data[5]; // Columna Sector
-                const filaEstado = data[6]; // Columna Estado (texto sin HTML)
+                const filaEstado = data[6]; // Columna Estado
                 const filaEtapa = data[7];  // Columna EtapaProyecto
                 const filaLider = data[8];  // Columna LiderProyecto
+                const filaPrioridad = data[9]; // Columna Prioridad (NUEVO)
                 
-                // Verificar cada filtro (si hay selecciones, debe coincidir al menos una)
+                // Verificar cada filtro
                 if (sectores.length > 0 && !sectores.some(sector => filaSector.includes(sector))) return false;
                 if (estados.length > 0 && !estados.some(estado => filaEstado.includes(estado))) return false;
                 if (etapas.length > 0 && !etapas.some(etapa => filaEtapa.includes(etapa))) return false;
                 if (lideres.length > 0 && !lideres.some(lider => filaLider.includes(lider))) return false;
+                if (prioridades.length > 0 && !prioridades.some(prioridad => filaPrioridad.includes(prioridad))) return false; // NUEVO
                 
                 return true;
             }
@@ -253,38 +269,34 @@ const ProyectosManager = {
         this.actualizarTextoFiltrosActivos();
     },
     
-    // Resetea todos los filtros (ACTUALIZADO para filtros múltiples)
     resetearFiltros: function() {
-        const selectores = ['filtroSector', 'filtroEstado', 'filtroEtapa', 'filtroLider'];
+        const selectores = ['filtroSector', 'filtroEstado', 'filtroEtapa', 'filtroLider', 'filtroPrioridad']; // Agregar filtroPrioridad
         
         selectores.forEach(id => {
             const elemento = document.getElementById(id);
             if (elemento) {
-                // Para selects múltiples, deseleccionar todas las opciones
                 Array.from(elemento.options).forEach(option => {
                     option.selected = false;
                 });
-                // Quitar clase de filtro activo
                 elemento.classList.remove('filtro-activo');
             }
         });
         
+        // Limpiar sessionStorage
+        sessionStorage.removeItem('filtrosProyectos');
+        
         // Limpiar filtros de DataTables
         $.fn.dataTable.ext.search.length = 0;
-        
-        // Redibujar la tabla sin filtros
         this.dataTable.search('').columns().search('').draw();
         
-        // Actualizar indicadores visuales
         this.actualizarIndicadoresFiltros();
         this.actualizarTextoFiltrosActivos();
         
         console.log('Filtros reseteados');
     },
     
-    // Actualiza los indicadores visuales de filtros activos (NUEVA FUNCIÓN)
     actualizarIndicadoresFiltros: function() {
-        const selectores = ['filtroSector', 'filtroEstado', 'filtroEtapa', 'filtroLider'];
+        const selectores = ['filtroSector', 'filtroEstado', 'filtroEtapa', 'filtroLider', 'filtroPrioridad']; // Agregar filtroPrioridad
         
         selectores.forEach(id => {
             const elemento = document.getElementById(id);
@@ -300,7 +312,6 @@ const ProyectosManager = {
         });
     },
     
-    // Actualiza el texto que muestra los filtros activos (NUEVA FUNCIÓN)
     actualizarTextoFiltrosActivos: function() {
         const textoElement = document.getElementById('filtrosActivosTexto');
         if (!textoElement) return;
@@ -312,6 +323,7 @@ const ProyectosManager = {
         const estados = Array.from(document.getElementById('filtroEstado')?.selectedOptions || []).map(opt => opt.value);
         const etapas = Array.from(document.getElementById('filtroEtapa')?.selectedOptions || []).map(opt => opt.value);
         const lideres = Array.from(document.getElementById('filtroLider')?.selectedOptions || []).map(opt => opt.value);
+        const prioridades = Array.from(document.getElementById('filtroPrioridad')?.selectedOptions || []).map(opt => opt.value); // NUEVO
         
         // Construir texto de filtros activos
         if (sectores.length > 0) {
@@ -325,6 +337,9 @@ const ProyectosManager = {
         }
         if (lideres.length > 0) {
             filtrosActivos.push(`Líderes: ${lideres.length === 1 ? lideres[0] : `${lideres.length} seleccionados`}`);
+        }
+        if (prioridades.length > 0) { // NUEVO
+            filtrosActivos.push(`Prioridades: ${prioridades.length === 1 ? prioridades[0] : `${prioridades.length} seleccionados`}`);
         }
         
         // Actualizar texto
@@ -351,8 +366,66 @@ const ProyectosManager = {
         
         // Redirigir a la página de detalle
         window.location.href = `detalleProyecto.php?id=${idProyecto}`;
+    },
+// Ver detalle de un proyecto
+verDetalleProyecto: function(idProyecto) {
+    console.log('Navegando al detalle del proyecto ID:', idProyecto);
+    
+    if (!idProyecto) {
+        console.error('ID de proyecto no válido');
+        mostrarAlerta('No se pudo abrir el detalle: ID de proyecto no válido', 'error');
+        return;
     }
-};
+    
+    // Redirigir a la página de detalle
+    window.location.href = `detalleProyecto.php?id=${idProyecto}`;
+}, // ← AGREGAR ESTA COMA
+
+// Guardar filtros en sessionStorage
+guardarFiltros: function() {
+    const filtros = {
+        sectores: Array.from(document.getElementById('filtroSector')?.selectedOptions || []).map(opt => opt.value),
+        estados: Array.from(document.getElementById('filtroEstado')?.selectedOptions || []).map(opt => opt.value),
+        etapas: Array.from(document.getElementById('filtroEtapa')?.selectedOptions || []).map(opt => opt.value),
+        lideres: Array.from(document.getElementById('filtroLider')?.selectedOptions || []).map(opt => opt.value),
+        prioridades: Array.from(document.getElementById('filtroPrioridad')?.selectedOptions || []).map(opt => opt.value)
+    };
+    
+    sessionStorage.setItem('filtrosProyectos', JSON.stringify(filtros));
+},
+
+// Restaurar filtros guardados
+restaurarFiltrosGuardados: function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('aplicar_filtros') === 'true') {
+        const filtrosGuardados = sessionStorage.getItem('filtrosProyectos');
+        if (filtrosGuardados) {
+            const filtros = JSON.parse(filtrosGuardados);
+            
+            // Aplicar filtros guardados a los selects
+            this.aplicarFiltrosGuardados('filtroSector', filtros.sectores);
+            this.aplicarFiltrosGuardados('filtroEstado', filtros.estados);
+            this.aplicarFiltrosGuardados('filtroEtapa', filtros.etapas);
+            this.aplicarFiltrosGuardados('filtroLider', filtros.lideres);
+            this.aplicarFiltrosGuardados('filtroPrioridad', filtros.prioridades);
+            
+            // Aplicar filtros automáticamente
+            setTimeout(() => this.aplicarFiltros(), 500);
+        }
+    }
+},
+
+// Aplicar filtros guardados a un select específico
+aplicarFiltrosGuardados: function(selectId, valores) {
+    const select = document.getElementById(selectId);
+    if (select && valores && valores.length > 0) {
+        Array.from(select.options).forEach(option => {
+            option.selected = valores.includes(option.value);
+        });
+    }
+}
+
+}; // ← Este es el cierre del objeto ProyectosManager
 
 // Función para mostrar alertas
 function mostrarAlerta(mensaje, tipo = 'info') {

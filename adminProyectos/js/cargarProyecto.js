@@ -10,6 +10,7 @@ $(document).ready(function() {
     
     // Cargar solicitantes desde la API
     cargarSolicitantes();
+    cargarSectores();
     
     // Configurar eventos
     configurarEventos();
@@ -143,6 +144,93 @@ function cargarSolicitantes() {
         },
         complete: function() {
             $('#solicitante').prop('disabled', false);
+        }
+    });
+}
+
+/**
+ * Carga los sectores desde la API
+ */
+function cargarSectores() {
+    console.log('Cargando sectores...');
+    
+    $.ajax({
+        url: 'api/cargarProyecto.php',
+        type: 'GET',
+        data: { accion: 'obtenerSectores' },
+        dataType: 'json',
+        beforeSend: function() {
+            $('#sector').prop('disabled', true);
+            // Destruir Select2 temporalmente para cambiar las opciones
+            $('#sector').select2('destroy');
+            $('#sector').html('<option value="">Cargando sectores...</option>');
+            $('#sector').select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Cargando...',
+                allowClear: true
+            });
+        },
+        success: function(response) {
+            console.log('Respuesta de sectores recibida:', response);
+            
+            if (response.exito) {
+                // Destruir Select2 para actualizar opciones
+                $('#sector').select2('destroy');
+                
+                // Limpiar opciones actuales
+                $('#sector').empty().append('<option value="">Seleccione sector</option>');
+                
+                // Agregar opciones desde la respuesta
+                if (response.sectores && Array.isArray(response.sectores)) {
+                    $.each(response.sectores, function(index, sector) {
+                        $('#sector').append(new Option(sector, sector));
+                    });
+                    console.log('Sectores cargados:', response.sectores.length);
+                } else {
+                    console.warn('No se encontraron sectores en la respuesta');
+                    $('#sector').append('<option value="">No hay sectores disponibles</option>');
+                }
+                                
+                // Reinicializar Select2
+                $('#sector').select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: 'Seleccione sector...',
+                    allowClear: true
+                });
+                
+            } else {
+                mostrarError('Error al cargar sectores: ' + (response.mensaje || 'Error desconocido'));
+                $('#sector').select2('destroy');
+                $('#sector').html('<option value="">Error al cargar sectores</option>');
+                $('#sector').select2({
+                    theme: 'bootstrap-5',
+                    width: '100%',
+                    placeholder: 'Error...',
+                    allowClear: true
+                });
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Error AJAX en sectores:', {
+                status: status,
+                error: error,
+                responseText: xhr.responseText
+            });
+            
+            mostrarError('Error al cargar sectores: ' + error);
+            $('#sector').select2('destroy');
+            $('#sector').html('<option value="">Error al cargar sectores</option>');
+            $('#sector').select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                placeholder: 'Error...',
+                allowClear: true
+            });
+        },
+        complete: function() {
+            $('#sector').prop('disabled', false);
         }
     });
 }
@@ -395,8 +483,9 @@ function limpiarFormulario() {
     $('.select2-selection').removeClass('is-invalid is-valid');
     $('.invalid-feedback').remove();
     
-    // Recargar solicitantes
+    // Recargar datos dinámicos
     cargarSolicitantes();
+    cargarSectores(); // NUEVA LÍNEA
     
     console.log('Formulario limpiado');
 }
