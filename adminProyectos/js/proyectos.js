@@ -16,7 +16,9 @@ const ProyectosManager = {
         sectores: [],
         estados: [],
         etapas: [],
-        lideres: []
+        lideres: [],
+        desarrolladores: [],
+        prioridades: []
     },
     
     // Inicializa la gestión de proyectos
@@ -44,7 +46,8 @@ const ProyectosManager = {
                 this.poblarSelectFiltros('filtroEstado', data.estados);
                 this.poblarSelectFiltros('filtroEtapa', data.etapas);
                 this.poblarSelectFiltros('filtroLider', data.lideres);
-                this.poblarSelectFiltros('filtroPrioridad', data.prioridades); // NUEVO
+                this.poblarSelectFiltros('filtroDesarrollador', data.desarrolladores);
+                this.poblarSelectFiltros('filtroPrioridad', data.prioridades);
                 
                 // Restaurar filtros si vienen de otra página
                 this.restaurarFiltrosGuardados();
@@ -108,6 +111,54 @@ const ProyectosManager = {
                 { data: 'Solicitante' },
                 { data: 'Sector' },
                 { 
+                    data: 'FechaLimite',
+                    render: function(data, type, row) {
+                        if (!data || data === '1900-01-01' || data === '') {
+                            return '<span class="text-muted">Sin definir</span>';
+                        }
+                        
+                        const fechaLimite = new Date(data);
+                        const fechaFormateada = fechaLimite.toLocaleDateString('es-ES');
+                        
+                        // Solo mostrar semáforo para estados PROCESO y PENDIENTE
+                        const estado = row.Estado ? row.Estado.toLowerCase() : '';
+                        const mostrarSemaforo = estado === 'proceso' || estado === 'pendiente' || estado === 'en proceso';
+                        
+                        if (!mostrarSemaforo) {
+                            return `<span class="text-muted">${fechaFormateada}</span>`;
+                        }
+                        
+                        const hoy = new Date();
+                        const diferenciaDias = Math.ceil((fechaLimite - hoy) / (1000 * 60 * 60 * 24));
+                        
+                        let icono = '';
+                        let tooltip = '';
+                        let color = '';
+                        
+                        if (diferenciaDias < 0) {
+                            // Vencido - Rojo
+                            icono = 'fas fa-circle text-danger';
+                            tooltip = `Vencido hace ${Math.abs(diferenciaDias)} días`;
+                            color = 'text-danger';
+                        } else if (diferenciaDias <= 2) {
+                            // Faltan 2 días o menos - Amarillo
+                            icono = 'fas fa-circle text-warning';
+                            tooltip = diferenciaDias === 0 ? 'Vence hoy' : `Faltan ${diferenciaDias} días para el vencimiento`;
+                            color = 'text-warning';
+                        } else {
+                            // Dentro del plazo - Verde
+                            icono = 'fas fa-circle text-success';
+                            tooltip = `Faltan ${diferenciaDias} días`;
+                            color = 'text-success';
+                        }
+                        
+                        return `<span class="d-flex align-items-center">
+                                   <i class="${icono} me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="${tooltip}"></i>
+                                   <span class="${color}">${fechaFormateada}</span>
+                               </span>`;
+                    }
+                },
+                { 
                     data: 'Estado',
                     render: function(data) {
                         const claseEstado = 'estado-' + (data ? data.toLowerCase() : 'desconocido');
@@ -115,7 +166,18 @@ const ProyectosManager = {
                     }
                 },
                 { data: 'EtapaProyecto' },
+                { 
+                    data: 'FinalizacionReal',
+                    render: function(data) {
+                        if (!data || data === '1900-01-01' || data === '') {
+                            return '<span class="text-muted">-</span>';
+                        }
+                        const fecha = new Date(data);
+                        return fecha.toLocaleDateString('es-ES');
+                    }
+                },
                 { data: 'LiderProyecto' },
+                { data: 'Desarrollador' },
                 { 
                     data: 'Prioridad',
                     render: function(data) {
@@ -199,6 +261,9 @@ const ProyectosManager = {
                     console.log('Ver detalle del proyecto ID:', idProyecto);
                     ProyectosManager.verDetalleProyecto(idProyecto);
                 });
+                
+                // Activar tooltips de Bootstrap para los semáforos de fecha límite
+                $('[data-bs-toggle="tooltip"]').tooltip();
             }
         });
     },
@@ -231,9 +296,10 @@ const ProyectosManager = {
         const estados = Array.from(document.getElementById('filtroEstado')?.selectedOptions || []).map(opt => opt.value);
         const etapas = Array.from(document.getElementById('filtroEtapa')?.selectedOptions || []).map(opt => opt.value);
         const lideres = Array.from(document.getElementById('filtroLider')?.selectedOptions || []).map(opt => opt.value);
-        const prioridades = Array.from(document.getElementById('filtroPrioridad')?.selectedOptions || []).map(opt => opt.value); // NUEVO
+        const desarrolladores = Array.from(document.getElementById('filtroDesarrollador')?.selectedOptions || []).map(opt => opt.value);
+        const prioridades = Array.from(document.getElementById('filtroPrioridad')?.selectedOptions || []).map(opt => opt.value);
         
-        console.log('Aplicando filtros múltiples:', { sectores, estados, etapas, lideres, prioridades });
+        console.log('Aplicando filtros múltiples:', { sectores, estados, etapas, lideres, desarrolladores, prioridades });
         
         // Guardar filtros
         this.guardarFiltros();
@@ -242,20 +308,20 @@ const ProyectosManager = {
         $.fn.dataTable.ext.search.length = 0;
         
         // Crear filtros personalizados para DataTables
-        $.fn.dataTable.ext.search.push(
-            (settings, data, dataIndex) => {
-                const filaSector = data[5]; // Columna Sector
-                const filaEstado = data[6]; // Columna Estado
-                const filaEtapa = data[7];  // Columna EtapaProyecto
-                const filaLider = data[8];  // Columna LiderProyecto
-                const filaPrioridad = data[9]; // Columna Prioridad (NUEVO)
-                
-                // Verificar cada filtro
+            $.fn.dataTable.ext.search.push(
+                (settings, data, dataIndex) => {
+                    const filaSector = data[5]; // Columna Sector
+                    const filaEstado = data[7]; // Columna Estado (ajustado por nueva columna)
+                    const filaEtapa = data[8];  // Columna EtapaProyecto (ajustado por nueva columna)
+                    const filaLider = data[10];  // Columna LiderProyecto (ajustado por nueva columna Finalización Real)
+                    const filaDesarrollador = data[11]; // Columna Desarrollador (ajustado por nueva columna)
+                    const filaPrioridad = data[12]; // Columna Prioridad (ajustado por nuevas columnas)                // Verificar cada filtro
                 if (sectores.length > 0 && !sectores.some(sector => filaSector.includes(sector))) return false;
                 if (estados.length > 0 && !estados.some(estado => filaEstado.includes(estado))) return false;
                 if (etapas.length > 0 && !etapas.some(etapa => filaEtapa.includes(etapa))) return false;
                 if (lideres.length > 0 && !lideres.some(lider => filaLider.includes(lider))) return false;
-                if (prioridades.length > 0 && !prioridades.some(prioridad => filaPrioridad.includes(prioridad))) return false; // NUEVO
+                if (desarrolladores.length > 0 && !desarrolladores.some(desarrollador => filaDesarrollador && filaDesarrollador.includes(desarrollador))) return false;
+                if (prioridades.length > 0 && !prioridades.some(prioridad => filaPrioridad.includes(prioridad))) return false;
                 
                 return true;
             }
@@ -270,7 +336,7 @@ const ProyectosManager = {
     },
     
     resetearFiltros: function() {
-        const selectores = ['filtroSector', 'filtroEstado', 'filtroEtapa', 'filtroLider', 'filtroPrioridad']; // Agregar filtroPrioridad
+        const selectores = ['filtroSector', 'filtroEstado', 'filtroEtapa', 'filtroLider', 'filtroDesarrollador', 'filtroPrioridad'];
         
         selectores.forEach(id => {
             const elemento = document.getElementById(id);
@@ -296,7 +362,7 @@ const ProyectosManager = {
     },
     
     actualizarIndicadoresFiltros: function() {
-        const selectores = ['filtroSector', 'filtroEstado', 'filtroEtapa', 'filtroLider', 'filtroPrioridad']; // Agregar filtroPrioridad
+        const selectores = ['filtroSector', 'filtroEstado', 'filtroEtapa', 'filtroLider', 'filtroDesarrollador', 'filtroPrioridad'];
         
         selectores.forEach(id => {
             const elemento = document.getElementById(id);
@@ -323,7 +389,8 @@ const ProyectosManager = {
         const estados = Array.from(document.getElementById('filtroEstado')?.selectedOptions || []).map(opt => opt.value);
         const etapas = Array.from(document.getElementById('filtroEtapa')?.selectedOptions || []).map(opt => opt.value);
         const lideres = Array.from(document.getElementById('filtroLider')?.selectedOptions || []).map(opt => opt.value);
-        const prioridades = Array.from(document.getElementById('filtroPrioridad')?.selectedOptions || []).map(opt => opt.value); // NUEVO
+        const desarrolladores = Array.from(document.getElementById('filtroDesarrollador')?.selectedOptions || []).map(opt => opt.value);
+        const prioridades = Array.from(document.getElementById('filtroPrioridad')?.selectedOptions || []).map(opt => opt.value);
         
         // Construir texto de filtros activos
         if (sectores.length > 0) {
@@ -338,7 +405,10 @@ const ProyectosManager = {
         if (lideres.length > 0) {
             filtrosActivos.push(`Líderes: ${lideres.length === 1 ? lideres[0] : `${lideres.length} seleccionados`}`);
         }
-        if (prioridades.length > 0) { // NUEVO
+        if (desarrolladores.length > 0) {
+            filtrosActivos.push(`Desarrolladores: ${desarrolladores.length === 1 ? desarrolladores[0] : `${desarrolladores.length} seleccionados`}`);
+        }
+        if (prioridades.length > 0) {
             filtrosActivos.push(`Prioridades: ${prioridades.length === 1 ? prioridades[0] : `${prioridades.length} seleccionados`}`);
         }
         
@@ -388,6 +458,7 @@ guardarFiltros: function() {
         estados: Array.from(document.getElementById('filtroEstado')?.selectedOptions || []).map(opt => opt.value),
         etapas: Array.from(document.getElementById('filtroEtapa')?.selectedOptions || []).map(opt => opt.value),
         lideres: Array.from(document.getElementById('filtroLider')?.selectedOptions || []).map(opt => opt.value),
+        desarrolladores: Array.from(document.getElementById('filtroDesarrollador')?.selectedOptions || []).map(opt => opt.value),
         prioridades: Array.from(document.getElementById('filtroPrioridad')?.selectedOptions || []).map(opt => opt.value)
     };
     
@@ -407,6 +478,7 @@ restaurarFiltrosGuardados: function() {
             this.aplicarFiltrosGuardados('filtroEstado', filtros.estados);
             this.aplicarFiltrosGuardados('filtroEtapa', filtros.etapas);
             this.aplicarFiltrosGuardados('filtroLider', filtros.lideres);
+            this.aplicarFiltrosGuardados('filtroDesarrollador', filtros.desarrolladores);
             this.aplicarFiltrosGuardados('filtroPrioridad', filtros.prioridades);
             
             // Aplicar filtros automáticamente

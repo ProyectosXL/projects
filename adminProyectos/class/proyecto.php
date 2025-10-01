@@ -324,6 +324,49 @@ class Proyecto
                     throw new Exception('Error al agregar la columna URLRequerimiento: ' . print_r(sqlsrv_errors(), true));
                 }
             }
+
+            // Verificar si la columna Desarrollador existe, y si no, agregarla
+            $sql = "SELECT COUNT(*) AS count FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = 'HistorialProyectos' AND COLUMN_NAME = 'Desarrollador'";
+            $result = sqlsrv_query($this->cid_central, $sql);
+            
+            if ($result === false) {
+                throw new Exception('Error al verificar la columna Desarrollador: ' . print_r(sqlsrv_errors(), true));
+            }
+            
+            $row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC);
+            
+            if ($row['count'] == 0) {
+                // Agregar la columna Desarrollador
+                $sqlAlter = "ALTER TABLE HistorialProyectos ADD Desarrollador NVARCHAR(255)";
+                $resultAlter = sqlsrv_query($this->cid_central, $sqlAlter);
+                
+                if ($resultAlter === false) {
+                    throw new Exception('Error al agregar la columna Desarrollador: ' . print_r(sqlsrv_errors(), true));
+                }
+            }
+
+            // La columna FinalizacionReal ya está definida en la estructura inicial de la tabla
+            // pero verificamos por si acaso en instalaciones existentes
+            $sql = "SELECT COUNT(*) AS count FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = 'HistorialProyectos' AND COLUMN_NAME = 'FinalizacionReal'";
+            $result = sqlsrv_query($this->cid_central, $sql);
+            
+            if ($result === false) {
+                throw new Exception('Error al verificar la columna FinalizacionReal: ' . print_r(sqlsrv_errors(), true));
+            }
+            
+            $row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC);
+            
+            if ($row['count'] == 0) {
+                // Agregar la columna FinalizacionReal
+                $sqlAlter = "ALTER TABLE HistorialProyectos ADD FinalizacionReal DATE";
+                $resultAlter = sqlsrv_query($this->cid_central, $sqlAlter);
+                
+                if ($resultAlter === false) {
+                    throw new Exception('Error al agregar la columna FinalizacionReal: ' . print_r(sqlsrv_errors(), true));
+                }
+            }
         }
     }
     
@@ -738,6 +781,7 @@ class Proyecto
         'estados' => [],
         'etapas' => [],
         'lideres' => [],
+        'desarrolladores' => [],
         'prioridades' => []
     ];
     
@@ -780,6 +824,16 @@ class Proyecto
         }
         while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
             $filtros['lideres'][] = $row['LiderProyecto'];
+        }
+        
+        // Obtener desarrolladores únicos
+        $sql = "SELECT DISTINCT Desarrollador FROM HistorialProyectos WHERE Desarrollador IS NOT NULL ORDER BY Desarrollador";
+        $result = sqlsrv_query($this->cid_central, $sql);
+        if ($result === false) {
+            throw new Exception("Error al obtener desarrolladores: " . print_r(sqlsrv_errors(), true));
+        }
+        while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
+            $filtros['desarrolladores'][] = $row['Desarrollador'];
         }
         
         // Obtener prioridades únicas (SOLUCIONADO - sin ORDER BY personalizado)

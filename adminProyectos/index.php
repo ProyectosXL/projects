@@ -157,14 +157,21 @@ error_reporting(E_ALL);
                         </select>
                         <div class="form-text">Ctrl+Click para seleccionar múltiples</div>
                     </div>
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
                         <label for="filtroLider" class="form-label">Líder de Proyecto</label>
                         <select class="form-select select-multiple" id="filtroLider" multiple>
                             <!-- Opciones se cargarán dinámicamente -->
                         </select>
                         <div class="form-text">Ctrl+Click para seleccionar múltiples</div>
                     </div>
-                    <div class="col-md-3 mb-3">
+                    <div class="col-md-2 mb-3">
+                        <label for="filtroDesarrollador" class="form-label">Desarrollador</label>
+                        <select class="form-select select-multiple" id="filtroDesarrollador" multiple>
+                            <!-- Opciones se cargarán dinámicamente -->
+                        </select>
+                        <div class="form-text">Ctrl+Click para seleccionar múltiples</div>
+                    </div>
+                    <div class="col-md-2 mb-3">
                         <label for="filtroPrioridad" class="form-label">Prioridad</label>
                         <select class="form-select select-multiple" id="filtroPrioridad" multiple>
                             <!-- Opciones se cargarán dinámicamente -->
@@ -210,9 +217,12 @@ error_reporting(E_ALL);
                                 <th>Tipo Presentación</th>
                                 <th>Solicitante</th>
                                 <th>Sector</th>
+                                <th>Fecha Límite</th>
                                 <th>Estado</th>
                                 <th>Etapa</th>
+                                <th>Finalización Real</th>
                                 <th>Líder Proyecto</th>
+                                <th>Desarrollador</th>
                                 <th>Prioridad</th>
                                 <th>Avance</th>
                                 <th>Acciones</th>

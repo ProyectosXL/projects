@@ -226,6 +226,56 @@ body {
     }
 }
 
+/* Semáforo de fecha límite */
+.fecha-limite-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.semaforo-fecha {
+    font-size: 12px;
+    animation: pulse 2s infinite;
+}
+
+.semaforo-fecha.text-danger {
+    animation: blink 1s infinite;
+}
+
+/* Estilos específicos para fechas según estado del proyecto */
+.fecha-inactiva {
+    color: #6c757d !important;
+    font-style: italic;
+}
+
+.fecha-activa {
+    font-weight: 500;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Tooltip personalizado para fechas */
+.tooltip {
+    font-size: 12px;
+}
+
+.tooltip-inner {
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+    border-radius: 4px;
+    padding: 5px 8px;
+}
+
 /* Mejoras de accesibilidad */
 .badge {
     padding: 0.5em 0.8em;
