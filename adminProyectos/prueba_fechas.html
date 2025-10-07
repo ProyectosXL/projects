@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prueba - Manejo de Fechas</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="css/editarProyecto.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>Prueba: Manejo de Campos de Fecha</h2>
+        <p class="text-muted">Esta página demuestra cómo funcionan los campos de fecha con botones de limpiar</p>
+        
+        <form id="testForm">
+            <div class="form-section">
+                <h3 class="section-title">Campos de Fecha con Botón de Limpiar</h3>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="fecha1" class="form-label">Fecha de Inicio</label>
+                            <input type="date" class="form-control" id="fecha1" name="fecha1" value="2024-12-01">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="fecha2" class="form-label">Fecha Límite</label>
+                            <input type="date" class="form-control" id="fecha2" name="fecha2">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="fecha3" class="form-label">Fecha de Finalización</label>
+                            <input type="date" class="form-control" id="fecha3" name="fecha3" value="2024-12-31">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="fecha4" class="form-label">Otra Fecha</label>
+                            <input type="date" class="form-control" id="fecha4" name="fecha4">
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="button" class="btn btn-info" onclick="mostrarValores()">
+                    <i class="fas fa-eye me-2"></i>Ver Valores
+                </button>
+                
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>Simular Envío
+                </button>
+            </div>
+        </form>
+        
+        <div id="resultado" class="mt-4"></div>
+        
+        <div class="alert alert-info">
+            <h5><i class="fas fa-info-circle me-2"></i>Instrucciones de Prueba</h5>
+            <ol>
+                <li><strong>Usar botón de limpiar:</strong> Haz clic en el ícono ❌ para limpiar cualquier fecha</li>
+                <li><strong>Borrar manualmente:</strong> Selecciona todo el texto y presiona Delete/Backspace</li>
+                <li><strong>Ver valores:</strong> Haz clic en "Ver Valores" para ver el estado actual</li>
+                <li><strong>Simular envío:</strong> El formulario mostrará qué campos se enviarían como NULL</li>
+            </ol>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        $(document).ready(function() {
+            console.log('Inicializando manejo de fechas...');
+            
+            // Campos de fecha que deben manejar valores vacíos
+            const camposFecha = ['#fecha1', '#fecha2', '#fecha3', '#fecha4'];
+            
+            // Función para limpiar campo de fecha
+            function limpiarCampoFecha($campo) {
+                $campo.val(''); // Limpiar visualmente
+                $campo.attr('data-empty', 'true'); // Marcar como vacío
+                console.log('Campo fecha limpiado:', $campo.attr('id'));
+            }
+            
+            // Agregar botón de limpiar a cada campo de fecha
+            camposFecha.forEach(function(selector) {
+                const $campo = $(selector);
+                const $container = $campo.parent();
+                
+                // Crear wrapper si no existe
+                if (!$container.hasClass('input-group')) {
+                    $campo.wrap('<div class="input-group"></div>');
+                    const $newContainer = $campo.parent();
+                    
+                    // Agregar botón de limpiar
+                    const $clearBtn = $('<button type="button" class="btn btn-outline-secondary btn-clear-date" title="Limpiar fecha">' +
+                        '<i class="fas fa-times"></i>' +
+                        '</button>');
+                    
+                    $newContainer.append($clearBtn);
+                    
+                    // Evento del botón limpiar
+                    $clearBtn.on('click', function(e) {
+                        e.preventDefault();
+                        limpiarCampoFecha($campo);
+                    });
+                }
+            });
+            
+            // Detectar cuando se borra manualmente el campo
+            $(camposFecha.join(',')).on('input change keyup', function() {
+                const $this = $(this);
+                const valor = $this.val();
+                
+                if (valor === '' || valor === null) {
+                    $this.attr('data-empty', 'true');
+                    console.log('Campo fecha detectado como vacío:', $this.attr('id'));
+                } else {
+                    $this.removeAttr('data-empty');
+                    console.log('Campo fecha con valor:', $this.attr('id'), valor);
+                }
+            });
+            
+            // Detectar tecla Delete/Backspace
+            $(camposFecha.join(',')).on('keydown', function(e) {
+                const $this = $(this);
+                
+                // Delete (46) o Backspace (8)
+                if (e.keyCode === 46 || e.keyCode === 8) {
+                    // Si el campo ya está casi vacío o completamente vacío
+                    const valor = $this.val();
+                    if (!valor || valor.length <= 1) {
+                        setTimeout(function() {
+                            limpiarCampoFecha($this);
+                        }, 10);
+                    }
+                }
+            });
+            
+            // Antes de enviar el formulario, procesar campos vacíos
+            $('#testForm').on('submit', function(e) {
+                e.preventDefault();
+                console.log('Procesando formulario...');
+                
+                let resultado = '<h4>Resultado del Procesamiento:</h4><ul>';
+                
+                $(camposFecha.join(',')).each(function() {
+                    const $campo = $(this);
+                    const valor = $campo.val();
+                    const nombre = $campo.attr('name');
+                    const label = $campo.prev('label').text() || nombre;
+                    
+                    // Si está marcado como vacío o realmente está vacío
+                    if ($campo.attr('data-empty') === 'true' || !valor || valor === '') {
+                        resultado += `<li><strong>${label}:</strong> <span class="text-danger">NULL</span> (campo vacío)</li>`;
+                        
+                        // Crear campo hidden para indicar null
+                        $('input[name="' + nombre + '_null"]').remove();
+                        $('<input type="hidden" name="' + nombre + '_null" value="1">').appendTo('#testForm');
+                    } else {
+                        resultado += `<li><strong>${label}:</strong> <span class="text-success">${valor}</span></li>`;
+                    }
+                });
+                
+                resultado += '</ul>';
+                $('#resultado').html('<div class="alert alert-info">' + resultado + '</div>');
+                
+                return false; // Evitar envío real
+            });
+            
+            console.log('✅ Manejo de fechas configurado correctamente');
+        });
+        
+        // Función para mostrar valores actuales
+        function mostrarValores() {
+            let resultado = '<h4>Valores Actuales:</h4><ul>';
+            
+            $('input[type="date"]').each(function() {
+                const $campo = $(this);
+                const valor = $campo.val();
+                const nombre = $campo.attr('name');
+                const label = $campo.prev('label').text() || nombre;
+                const isEmpty = $campo.attr('data-empty') === 'true';
+                
+                if (isEmpty || !valor) {
+                    resultado += `<li><strong>${label}:</strong> <span class="text-muted">(vacío)</span></li>`;
+                } else {
+                    resultado += `<li><strong>${label}:</strong> ${valor}</li>`;
+                }
+            });
+            
+            resultado += '</ul>';
+            $('#resultado').html('<div class="alert alert-info">' + resultado + '</div>');
+        }
+    </script>
+</body>
+</html>

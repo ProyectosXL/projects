@@ -567,9 +567,11 @@ class Proyecto
             $params = [];
             
             foreach ($datos as $campo => $valor) {
-                if ($valor !== null && $valor !== '') {
+                // Incluir campos con valor null explícitamente o con valores no vacíos
+                // Solo excluir si el valor es una cadena vacía (pero permitir null)
+                if ($valor !== '' && array_key_exists($campo, $datos)) {
                     $camposActualizar[] = "$campo = ?";
-                    $params[] = $valor;
+                    $params[] = $valor; // Esto puede ser null, y está bien
                 }
             }
             

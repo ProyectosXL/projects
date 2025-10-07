@@ -28,8 +28,28 @@ try {
     
     // Procesar el formulario si se envió
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        // Función helper para procesar campos de fecha
+        function procesarCampoFecha($nombreCampo) {
+            // Si existe el marcador de null, devolver null
+            if (isset($_POST[$nombreCampo . '_null'])) {
+                return null;
+            }
+            
+            // Si el campo está vacío o es una cadena vacía, devolver null
+            $valor = $_POST[$nombreCampo] ?? null;
+            if ($valor === '' || $valor === null) {
+                return null;
+            }
+            
+            // Validar formato de fecha
+            if (DateTime::createFromFormat('Y-m-d', $valor) === false) {
+                return null;
+            }
+            
+            return $valor;
+        }
+        
         // Recoger los datos del formulario (incluyendo los nuevos campos editables)
-        // Recoger los datos del formulario (incluyendo URLRequerimiento)
         $datosActualizados = [
             // Campos nuevos editables
             'Desarrollo' => $_POST['Desarrollo'] ?? null,
@@ -42,17 +62,26 @@ try {
             // Campo URL del Requerimiento
             'URLRequerimiento' => $_POST['URLRequerimiento'] ?? null,
             
-            // Campos que ya eran editables
-            'InicioProgramado' => $_POST['InicioProgramado'] ?? null,
-            'FechaLimite' => $_POST['FechaLimite'] ?? null,
-            'InicioReal' => $_POST['InicioReal'] ?? null,
-            'FinalizacionReal' => $_POST['FinalizacionReal'] ?? null,
+            // Campos de fecha con manejo especial de valores null
+            'InicioProgramado' => procesarCampoFecha('InicioProgramado'),
+            'FechaLimite' => procesarCampoFecha('FechaLimite'),
+            'InicioReal' => procesarCampoFecha('InicioReal'),
+            'FinalizacionReal' => procesarCampoFecha('FinalizacionReal'),
+            
+            // Otros campos editables
             'Estado' => $_POST['Estado'] ?? null,
             'EtapaProyecto' => $_POST['EtapaProyecto'] ?? null,
             'LiderProyecto' => $_POST['LiderProyecto'] ?? null,
             'Desarrollador' => $_POST['Desarrollador'] ?? null,
             'Prioridad' => $_POST['Prioridad'] ?? null
         ];
+        
+        // Log para debugging
+        error_log('Datos de fechas procesados:');
+        error_log('InicioProgramado: ' . ($datosActualizados['InicioProgramado'] ?? 'NULL'));
+        error_log('FechaLimite: ' . ($datosActualizados['FechaLimite'] ?? 'NULL'));
+        error_log('InicioReal: ' . ($datosActualizados['InicioReal'] ?? 'NULL'));
+        error_log('FinalizacionReal: ' . ($datosActualizados['FinalizacionReal'] ?? 'NULL'));
         
         // Procesar comentario si se proporcionó
         $comentario = $_POST['comentario'] ?? '';
@@ -447,7 +476,7 @@ try {
     <!-- Custom JS -->
     <script src="js/editarProyecto.js"></script>
     
-    <!-- Script simple para los selects -->
+    <!-- Script para los selects y campos de fecha -->
     <script>
         $(document).ready(function() {
             console.log('Página cargada, verificando valores de los selects...');
@@ -477,7 +506,104 @@ try {
                 }
             });
             
-            console.log('✅ Selects configurados correctamente');
+            // ===== MANEJO DE CAMPOS DE FECHA =====
+            // Campos de fecha que deben manejar valores vacíos
+            const camposFecha = [
+                '#InicioProgramado',
+                '#FechaLimite', 
+                '#InicioReal',
+                '#FinalizacionReal'
+            ];
+            
+            // Función para limpiar campo de fecha
+            function limpiarCampoFecha($campo) {
+                $campo.val(''); // Limpiar visualmente
+                $campo.attr('data-empty', 'true'); // Marcar como vacío
+                console.log('Campo fecha limpiado:', $campo.attr('id'));
+            }
+            
+            // Agregar botón de limpiar a cada campo de fecha
+            camposFecha.forEach(function(selector) {
+                const $campo = $(selector);
+                const $container = $campo.parent();
+                
+                // Crear wrapper si no existe
+                if (!$container.hasClass('input-group')) {
+                    $campo.wrap('<div class="input-group"></div>');
+                    const $newContainer = $campo.parent();
+                    
+                    // Agregar botón de limpiar
+                    const $clearBtn = $('<button type="button" class="btn btn-outline-secondary btn-clear-date" title="Limpiar fecha">' +
+                        '<i class="fas fa-times"></i>' +
+                        '</button>');
+                    
+                    $newContainer.append($clearBtn);
+                    
+                    // Evento del botón limpiar
+                    $clearBtn.on('click', function(e) {
+                        e.preventDefault();
+                        limpiarCampoFecha($campo);
+                    });
+                }
+            });
+            
+            // Detectar cuando se borra manualmente el campo
+            $(camposFecha.join(',')).on('input change keyup', function() {
+                const $this = $(this);
+                const valor = $this.val();
+                
+                if (valor === '' || valor === null) {
+                    $this.attr('data-empty', 'true');
+                    console.log('Campo fecha detectado como vacío:', $this.attr('id'));
+                } else {
+                    $this.removeAttr('data-empty');
+                    console.log('Campo fecha con valor:', $this.attr('id'), valor);
+                }
+            });
+            
+            // Detectar tecla Delete/Backspace
+            $(camposFecha.join(',')).on('keydown', function(e) {
+                const $this = $(this);
+                
+                // Delete (46) o Backspace (8)
+                if (e.keyCode === 46 || e.keyCode === 8) {
+                    // Si el campo ya está casi vacío o completamente vacío
+                    const valor = $this.val();
+                    if (!valor || valor.length <= 1) {
+                        setTimeout(function() {
+                            limpiarCampoFecha($this);
+                        }, 10);
+                    }
+                }
+            });
+            
+            // Antes de enviar el formulario, procesar campos vacíos
+            $('form').on('submit', function() {
+                console.log('Procesando formulario antes del envío...');
+                
+                $(camposFecha.join(',')).each(function() {
+                    const $campo = $(this);
+                    const valor = $campo.val();
+                    
+                    // Si está marcado como vacío o realmente está vacío
+                    if ($campo.attr('data-empty') === 'true' || !valor || valor === '') {
+                        // Crear un campo hidden con valor null para este campo
+                        const nombre = $campo.attr('name');
+                        
+                        // Remover campos hidden previos con el mismo nombre
+                        $('input[name="' + nombre + '_null"]').remove();
+                        
+                        // Agregar campo hidden que indicará null en el servidor
+                        $('<input type="hidden" name="' + nombre + '_null" value="1">').appendTo($('form'));
+                        
+                        console.log('Campo configurado como NULL:', nombre);
+                    }
+                });
+                
+                return true; // Continuar con el envío
+            });
+            
+            console.log('✅ Selects y campos de fecha configurados correctamente');
         });
     </script>
 
