@@ -424,6 +424,7 @@ try {
                                 <option value="Eduardo Berga">Eduardo Berga</option>
                                 <option value="Agustina Latorre">Agustina Latorre</option>
                                 <option value="Santos García">Santos García</option>
+                                <option value="Franco Pertus">Franco Pertus</option>
                             </select>
                             <div class="form-text text-muted">Seleccione un responsable si desea añadir un comentario</div>
                         </div>
