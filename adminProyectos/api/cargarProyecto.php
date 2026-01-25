@@ -1,4 +1,3 @@
-
 <?php
 /**
  * API para cargar proyectos
@@ -7,9 +6,9 @@
  * La prioridad siempre se establece como "Sin asignar"
  */
 
-// Configuración para mostrar errores (solo para desarrollo)
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+// Configuración para mostrar errores (desactivado para no interferir con JSON)
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
 error_reporting(E_ALL);
 
 // Configuración de cabeceras para respuestas JSON con UTF-8
@@ -252,4 +251,3 @@ function responderError($mensaje, $codigo = 400) {
     
     exit;
 }
-?>
