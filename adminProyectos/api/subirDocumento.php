@@ -1,4 +1,3 @@
-
 <?php
 /**
  * API para subir documentos a un proyecto específico
@@ -7,10 +6,10 @@
 // Configuración para ocultar errores en producción
 ini_set('display_errors', 0);
 ini_set('display_startup_errors', 0);
-error_reporting(0);
+error_reporting(E_ALL);
 
 // Configuración de cabeceras para respuestas JSON
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=UTF-8');
 
 // Incluir clase de proyecto
 require_once '../class/proyecto.php';
@@ -247,4 +246,3 @@ function responderError($mensaje, $codigo = 400) {
     
     exit;
 }
-?>

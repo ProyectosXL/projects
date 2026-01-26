@@ -2,6 +2,22 @@
 
 class Conexion{
     
+    // Declaración de propiedades para evitar advertencias de deprecación en PHP 8.2+
+    private $envVars;
+    private $host_central;
+    private $database_central;
+    private $host_locales;
+    private $database_locales;
+    private $database_tangobis;
+    private $user;
+    private $pass;
+    private $pass_locales;
+    private $character;
+    private $env;
+    private $prefix;
+    private $database_uy;
+    private $database_sucUy;
+    
     function __construct(){
 
         require_once(__DIR__.'/classEnv.php');

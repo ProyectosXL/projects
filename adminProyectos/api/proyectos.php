@@ -1,9 +1,9 @@
-
 <?php
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=UTF-8');
 
 // Activar visualización de errores para depuración
-ini_set('display_errors', 0); // Cambiar a 1 solo para depuración
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
 error_reporting(E_ALL);
 
 try {
@@ -46,4 +46,3 @@ try {
         'error' => $e->getMessage()
     ]);
 }
-?>

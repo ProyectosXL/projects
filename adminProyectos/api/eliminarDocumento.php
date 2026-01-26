@@ -1,16 +1,15 @@
-
 <?php
 /**
  * API para eliminar documentos de un proyecto
  */
 
-// Configuración para mostrar errores (solo para desarrollo)
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+// Configuración para mostrar errores (desactivado para no interferir con JSON)
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
 error_reporting(E_ALL);
 
 // Configuración de cabeceras para respuestas JSON
-header('Content-Type: application/json');
+header('Content-Type: application/json; charset=UTF-8');
 
 // Incluir clase de proyecto
 require_once '../class/proyecto.php';
@@ -114,4 +113,3 @@ function responderError($mensaje, $codigo = 400) {
     
     exit;
 }
-?>
