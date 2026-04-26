@@ -10,7 +10,7 @@ const ProyectosManager = {
     
     // Datos originales de proyectos
     proyectosData: [],
-    
+
     // Datos de filtros
     filtros: {
         sectores: [],
@@ -20,12 +20,25 @@ const ProyectosManager = {
         desarrolladores: [],
         prioridades: []
     },
-    
+
+    // Filtros activos de multi-select (usados por la función de búsqueda global)
+    filtrosActuales: {
+        sectores: [], estados: [], etapas: [], lideres: [], desarrolladores: [], prioridades: []
+    },
+
+    // Chips de fecha activos
+    activeChips: new Set(),
+
+    // Estado del ordenamiento por prioridad
+    sortByPriority: false,
+
     // Inicializa la gestión de proyectos
     init: function() {
         this.cargarFiltros();
         this.inicializarTabla();
+        this.inicializarFiltroGlobal();
         this.setupEventListeners();
+        this.setupChipFilters();
     },
     
     cargarFiltros: function() {
@@ -104,13 +117,63 @@ const ProyectosManager = {
                 }
             },
             columns: [
-                { data: 'ID' },
-                { data: 'FechaCreacion' },
+                {
+                    data: 'ID',
+                    render: function(data, type, row) {
+                        if (type !== 'display') return data;
+                        const fechaCreacion = row.FechaCreacion
+                            ? new Date(row.FechaCreacion).toLocaleDateString('es-ES')
+                            : 'Sin fecha';
+                        return `<span data-bs-toggle="tooltip" data-bs-placement="right" title="Creado: ${fechaCreacion}">${data}</span>`;
+                    }
+                },
                 { data: 'Desarrollo' },
                 { data: 'TipoPresentacion' },
                 { data: 'Solicitante' },
                 { data: 'Sector' },
-                { 
+                {
+                    data: 'InicioProgramado',
+                    render: function(data, type, row) {
+                        if (!data || data === '1900-01-01' || data === '') {
+                            return '<span class="text-muted">Sin definir</span>';
+                        }
+
+                        const fechaInicio = new Date(data);
+                        const fechaFormateada = fechaInicio.toLocaleDateString('es-ES');
+
+                        const estado = row.Estado ? row.Estado.toLowerCase() : '';
+                        const mostrarSemaforo = estado === 'proceso' || estado === 'pendiente' || estado === 'en proceso';
+
+                        if (!mostrarSemaforo) {
+                            return `<span class="text-muted">${fechaFormateada}</span>`;
+                        }
+
+                        const hoy = new Date();
+                        const diferenciaDias = Math.ceil((fechaInicio - hoy) / (1000 * 60 * 60 * 24));
+
+                        let icono, tooltip, color;
+
+                        if (diferenciaDias < 0) {
+                            icono = 'fas fa-circle text-secondary';
+                            tooltip = `Inició hace ${Math.abs(diferenciaDias)} días`;
+                            color = 'text-secondary';
+                        } else if (diferenciaDias <= 2) {
+                            icono = 'fas fa-circle text-warning';
+                            tooltip = diferenciaDias === 0 ? 'Inicia hoy' : `Inicia en ${diferenciaDias} días`;
+                            color = 'text-warning';
+                        } else {
+                            icono = 'fas fa-circle text-success';
+                            tooltip = `Inicia en ${diferenciaDias} días`;
+                            color = 'text-success';
+                        }
+
+                        return `<span class="d-flex align-items-center">
+                                   <i class="${icono} me-2" data-bs-toggle="tooltip" data-bs-placement="top" title="${tooltip}"></i>
+                                   <span class="${color}">${fechaFormateada}</span>
+                               </span>`;
+                    }
+                },
+                {
                     data: 'FechaLimite',
                     render: function(data, type, row) {
                         if (!data || data === '1900-01-01' || data === '') {
@@ -178,12 +241,21 @@ const ProyectosManager = {
                 },
                 { data: 'LiderProyecto' },
                 { data: 'Desarrollador' },
-                { 
+                {
                     data: 'Prioridad',
-                    render: function(data) {
+                    type: 'prioridad',
+                    render: function(data, type) {
+                        if (type === 'sort' || type === 'type') {
+                            const p = (data || '').toLowerCase();
+                            if (p.includes('urgente'))     return 1;
+                            if (p.includes('alta'))        return 2;
+                            if (p.includes('media'))       return 3;
+                            if (p.includes('baja'))        return 4;
+                            return 5;
+                        }
                         let prioridadLower = (data || '').toLowerCase();
                         let clase = '';
-                        
+
                         if (prioridadLower.includes('urgente')) {
                             clase = 'prioridad-urgente';
                         } else if (prioridadLower.includes('alta')) {
@@ -196,7 +268,7 @@ const ProyectosManager = {
                             clase = 'prioridad-sin-asignar';
                             data = data || 'Sin asignar';
                         }
-                        
+
                         return `<span class="prioridad-badge ${clase}">${data}</span>`;
                     }
                 },
@@ -289,48 +361,39 @@ const ProyectosManager = {
         } else {
             console.warn('No se encontró el botón de resetear filtros');
         }
+
+        // Botón ordenar por prioridad
+        const btnOrdenar = document.getElementById('btnOrdenarPrioridad');
+        if (btnOrdenar) {
+            btnOrdenar.addEventListener('click', () => {
+                this.sortByPriority = !this.sortByPriority;
+                if (this.sortByPriority) {
+                    btnOrdenar.classList.remove('btn-outline-secondary');
+                    btnOrdenar.classList.add('btn-secondary', 'active');
+                    this.dataTable.order([12, 'asc']).draw();
+                } else {
+                    btnOrdenar.classList.remove('btn-secondary', 'active');
+                    btnOrdenar.classList.add('btn-outline-secondary');
+                    this.dataTable.order([0, 'desc']).draw();
+                }
+            });
+        }
     },
     
     aplicarFiltros: function() {
-        const sectores = Array.from(document.getElementById('filtroSector')?.selectedOptions || []).map(opt => opt.value);
-        const estados = Array.from(document.getElementById('filtroEstado')?.selectedOptions || []).map(opt => opt.value);
-        const etapas = Array.from(document.getElementById('filtroEtapa')?.selectedOptions || []).map(opt => opt.value);
-        const lideres = Array.from(document.getElementById('filtroLider')?.selectedOptions || []).map(opt => opt.value);
-        const desarrolladores = Array.from(document.getElementById('filtroDesarrollador')?.selectedOptions || []).map(opt => opt.value);
-        const prioridades = Array.from(document.getElementById('filtroPrioridad')?.selectedOptions || []).map(opt => opt.value);
-        
-        console.log('Aplicando filtros múltiples:', { sectores, estados, etapas, lideres, desarrolladores, prioridades });
-        
-        // Guardar filtros
+        this.filtrosActuales = {
+            sectores:       Array.from(document.getElementById('filtroSector')?.selectedOptions || []).map(opt => opt.value),
+            estados:        Array.from(document.getElementById('filtroEstado')?.selectedOptions || []).map(opt => opt.value),
+            etapas:         Array.from(document.getElementById('filtroEtapa')?.selectedOptions || []).map(opt => opt.value),
+            lideres:        Array.from(document.getElementById('filtroLider')?.selectedOptions || []).map(opt => opt.value),
+            desarrolladores: Array.from(document.getElementById('filtroDesarrollador')?.selectedOptions || []).map(opt => opt.value),
+            prioridades:    Array.from(document.getElementById('filtroPrioridad')?.selectedOptions || []).map(opt => opt.value)
+        };
+
+        console.log('Aplicando filtros múltiples:', this.filtrosActuales);
+
         this.guardarFiltros();
-        
-        // Limpiar filtros previos
-        $.fn.dataTable.ext.search.length = 0;
-        
-        // Crear filtros personalizados para DataTables
-            $.fn.dataTable.ext.search.push(
-                (settings, data, dataIndex) => {
-                    const filaSector = data[5]; // Columna Sector
-                    const filaEstado = data[7]; // Columna Estado (ajustado por nueva columna)
-                    const filaEtapa = data[8];  // Columna EtapaProyecto (ajustado por nueva columna)
-                    const filaLider = data[10];  // Columna LiderProyecto (ajustado por nueva columna Finalización Real)
-                    const filaDesarrollador = data[11]; // Columna Desarrollador (ajustado por nueva columna)
-                    const filaPrioridad = data[12]; // Columna Prioridad (ajustado por nuevas columnas)                // Verificar cada filtro
-                if (sectores.length > 0 && !sectores.some(sector => filaSector.includes(sector))) return false;
-                if (estados.length > 0 && !estados.some(estado => filaEstado.includes(estado))) return false;
-                if (etapas.length > 0 && !etapas.some(etapa => filaEtapa.includes(etapa))) return false;
-                if (lideres.length > 0 && !lideres.some(lider => filaLider.includes(lider))) return false;
-                if (desarrolladores.length > 0 && !desarrolladores.some(desarrollador => filaDesarrollador && filaDesarrollador.includes(desarrollador))) return false;
-                if (prioridades.length > 0 && !prioridades.some(prioridad => filaPrioridad.includes(prioridad))) return false;
-                
-                return true;
-            }
-        );
-        
-        // Redibujar la tabla con los filtros aplicados
         this.dataTable.draw();
-        
-        // Actualizar indicadores visuales
         this.actualizarIndicadoresFiltros();
         this.actualizarTextoFiltrosActivos();
     },
@@ -350,10 +413,10 @@ const ProyectosManager = {
         
         // Limpiar sessionStorage
         sessionStorage.removeItem('filtrosProyectos');
-        
-        // Limpiar filtros de DataTables
-        $.fn.dataTable.ext.search.length = 0;
-        this.dataTable.search('').columns().search('').draw();
+
+        // Limpiar filtros activos
+        this.filtrosActuales = { sectores: [], estados: [], etapas: [], lideres: [], desarrolladores: [], prioridades: [] };
+        this.dataTable.search('').draw();
         
         this.actualizarIndicadoresFiltros();
         this.actualizarTextoFiltrosActivos();
@@ -495,6 +558,92 @@ aplicarFiltrosGuardados: function(selectId, valores) {
             option.selected = valores.includes(option.value);
         });
     }
+},
+
+// Registra UNA función de búsqueda global que combina multi-select y chips
+// Debe llamarse una sola vez, después de inicializarTabla()
+inicializarFiltroGlobal: function() {
+    const self = this;
+
+    // Column indices after Task 1 (InicioProgramado added) + Task 3 (FechaCreacion hidden):
+    // 0: ID, 1: Desarrollo, 2: TipoPresentacion, 3: Solicitante, 4: Sector,
+    // 5: InicioProgramado, 6: FechaLimite, 7: Estado, 8: EtapaProyecto,
+    // 9: FinalizacionReal, 10: LiderProyecto, 11: Desarrollador, 12: Prioridad
+    $.fn.dataTable.ext.search.push(function(settings, data, dataIndex, rowData) {
+        const f = self.filtrosActuales;
+
+        // --- Multi-select filter ---
+        const filaSector       = data[4];
+        const filaEstado       = data[7];
+        const filaEtapa        = data[8];
+        const filaLider        = data[10];
+        const filaDesarrollador = data[11];
+        const filaPrioridad    = data[12];
+
+        if (f.sectores.length > 0       && !f.sectores.some(v => filaSector.includes(v)))                          return false;
+        if (f.estados.length > 0        && !f.estados.some(v => filaEstado.includes(v)))                           return false;
+        if (f.etapas.length > 0         && !f.etapas.some(v => filaEtapa.includes(v)))                             return false;
+        if (f.lideres.length > 0        && !f.lideres.some(v => filaLider.includes(v)))                            return false;
+        if (f.desarrolladores.length > 0 && !f.desarrolladores.some(v => filaDesarrollador && filaDesarrollador.includes(v))) return false;
+        if (f.prioridades.length > 0    && !f.prioridades.some(v => filaPrioridad.includes(v)))                    return false;
+
+        // --- Chip date filter (OR logic: row passes if it matches ANY active chip) ---
+        if (self.activeChips.size > 0) {
+            const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+
+            // Inicio y fin del mes actual
+            const inicioMesActual = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+            const finMesActual    = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+            finMesActual.setHours(23, 59, 59, 999);
+
+            // Inicio y fin del mes siguiente
+            const inicioMesSig = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 1);
+            const finMesSig    = new Date(hoy.getFullYear(), hoy.getMonth() + 2, 0);
+            finMesSig.setHours(23, 59, 59, 999);
+
+            const estadoRaw = (rowData.Estado || '').toLowerCase();
+
+            const parseDate = (val) => {
+                if (!val || val === '1900-01-01') return null;
+                const d = new Date(val); d.setHours(0, 0, 0, 0);
+                return isNaN(d) ? null : d;
+            };
+            const fechaLimite = parseDate(rowData.FechaLimite);
+
+            let chipMatch = false;
+            for (const filtro of self.activeChips) {
+                if (filtro === 'vencen-mes'          && fechaLimite && fechaLimite >= inicioMesActual && fechaLimite <= finMesActual) { chipMatch = true; break; }
+                if (filtro === 'vencen-mes-siguiente' && fechaLimite && fechaLimite >= inicioMesSig    && fechaLimite <= finMesSig)    { chipMatch = true; break; }
+                if (filtro === 'atrasados'            && fechaLimite && fechaLimite < hoy
+                    && estadoRaw !== 'finalizado' && estadoRaw !== 'cancelado' && estadoRaw !== 'terminado' && estadoRaw !== 'pausado') { chipMatch = true; break; }
+            }
+            if (!chipMatch) return false;
+        }
+
+        return true;
+    });
+},
+
+// Vincula los chips de fecha a la función de búsqueda global
+setupChipFilters: function() {
+    document.querySelectorAll('.chip-fecha').forEach(chip => {
+        chip.addEventListener('click', () => {
+            const filtro = chip.dataset.filtro;
+            const yaActivo = this.activeChips.has(filtro);
+
+            // Limpiar todos los chips
+            this.activeChips.clear();
+            document.querySelectorAll('.chip-fecha').forEach(c => c.classList.remove('active'));
+
+            // Si no estaba activo, activar el clickeado; si ya estaba, queda deseleccionado
+            if (!yaActivo) {
+                this.activeChips.add(filtro);
+                chip.classList.add('active');
+            }
+
+            this.dataTable.draw();
+        });
+    });
 }
 
 }; // ← Este es el cierre del objeto ProyectosManager

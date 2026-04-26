@@ -27,7 +27,7 @@ error_reporting(E_ALL);
     <link href="css/styles.css" rel="stylesheet">
     <link href="css/datatables.css" rel="stylesheet">
     
-    <!-- Estilos para filtros múltiples -->
+    <!-- Estilos para filtros múltiples y chips -->
     <style>
         /* Estilos para filtros múltiples */
         .select-multiple {
@@ -75,18 +75,53 @@ error_reporting(E_ALL);
             box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.15) !important;
         }
 
+        /* Chip date filters */
+        .chip-fecha {
+            border-radius: 50px;
+            transition: all 0.2s ease;
+            font-size: 0.8rem;
+        }
+        .chip-fecha[data-filtro="vencen-mes"].active {
+            background-color: #ffc107;
+            color: #212529;
+            border-color: #ffc107;
+        }
+        .chip-fecha[data-filtro="vencen-mes-siguiente"].active {
+            background-color: #0d6efd;
+            color: white;
+            border-color: #0d6efd;
+        }
+        .chip-fecha[data-filtro="atrasados"].active {
+            background-color: #dc3545;
+            color: white;
+            border-color: #dc3545;
+        }
+
+        /* Botón ordenar por prioridad activo */
+        #btnOrdenarPrioridad.active {
+            background-color: #6c757d;
+            color: white;
+            border-color: #6c757d;
+        }
+
+        /* Tooltip on ID cell */
+        #tablaProyectos td:first-child span[data-bs-toggle="tooltip"] {
+            border-bottom: 1px dotted #6c757d;
+            cursor: default;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .select-multiple {
                 min-height: 60px;
                 max-height: 100px;
             }
-            
+
             .filtros-seleccionados {
                 max-width: 100%;
                 margin-bottom: 10px;
             }
-            
+
             .d-flex.justify-content-between {
                 flex-direction: column;
                 align-items: stretch !important;
@@ -109,6 +144,9 @@ error_reporting(E_ALL);
                     <li class="nav-item">
                         <a class="nav-link active" href="index.php">Proyectos</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="estadisticas.php">Estadísticas</a>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -118,9 +156,6 @@ error_reporting(E_ALL);
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Seguimiento de Proyectos</h1>
             <div class="d-flex gap-2">
-                <a href="estadisticas.php" class="btn btn-success">
-                    <i class="fas fa-chart-pie me-1"></i> Estadísticas
-                </a>
                 <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#leyendaModal">
                     <i class="fas fa-info-circle me-1"></i> Leyenda
                 </button>
@@ -201,6 +236,24 @@ error_reporting(E_ALL);
             </div>
         </div>
         
+        <!-- Chips de filtro rápido por fecha -->
+        <div class="mb-3 d-flex flex-wrap gap-2 align-items-center">
+            <span class="text-muted small me-1"><i class="fas fa-bolt me-1"></i>Filtros rápidos:</span>
+            <button class="btn btn-sm btn-outline-warning chip-fecha" data-filtro="vencen-mes">
+                <i class="fas fa-calendar-alt me-1"></i>Vencen este mes
+            </button>
+            <button class="btn btn-sm btn-outline-primary chip-fecha" data-filtro="vencen-mes-siguiente">
+                <i class="fas fa-calendar me-1"></i>Vencen mes siguiente
+            </button>
+            <button class="btn btn-sm btn-outline-danger chip-fecha" data-filtro="atrasados">
+                <i class="fas fa-exclamation-triangle me-1"></i>Atrasados
+            </button>
+            <span class="text-muted small border-start ps-3 ms-1"><i class="fas fa-sort-amount-down me-1"></i>Ordenar:</span>
+            <button class="btn btn-sm btn-outline-secondary" id="btnOrdenarPrioridad" title="Ordena: Urgente → Alta → Media → Baja → Sin asignar">
+                <i class="fas fa-layer-group me-1"></i>Por prioridad
+            </button>
+        </div>
+
         <!-- Tabla de Proyectos -->
         <div class="card">
             <div class="card-header bg-primary text-white">
@@ -212,11 +265,11 @@ error_reporting(E_ALL);
                         <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>Fecha Creación</th>
                                 <th>Desarrollo</th>
                                 <th>Tipo Presentación</th>
                                 <th>Solicitante</th>
                                 <th>Sector</th>
+                                <th>Inicio Programado</th>
                                 <th>Fecha Límite</th>
                                 <th>Estado</th>
                                 <th>Etapa</th>

@@ -16,33 +16,40 @@ try {
     // Crear una instancia de la clase Proyecto
     $proyectoObj = new Proyecto();
     
-    $action = isset($_GET['action']) ? $_GET['action'] : '';
+    $action       = isset($_GET['action']) ? $_GET['action'] : '';
     $filtroSector = isset($_GET['sector']) ? $_GET['sector'] : '';
-    $filtroLider = isset($_GET['lider']) ? $_GET['lider'] : '';
+    $filtroLider  = isset($_GET['lider'])  ? $_GET['lider']  : '';
     $filtroEstado = isset($_GET['estado']) ? $_GET['estado'] : '';
-    
+    $filtroAno    = isset($_GET['year'])   ? intval($_GET['year']) : intval(date('Y'));
+
     switch ($action) {
         case 'estados':
-            // Estados: NO filtrar por estado, SÍ por sector y líder
-            obtenerEstadisticasEstados($proyectoObj, $filtroSector, $filtroLider);
+            obtenerEstadisticasEstados($proyectoObj, $filtroSector, $filtroLider, $filtroAno);
             break;
-            
+
         case 'finalizados-por-año':
+            // Historical chart — intentionally no year filter
             obtenerProyectosFinalizadosPorAño($proyectoObj, $filtroSector, $filtroLider, $filtroEstado);
             break;
-            
+
         case 'sectores':
-            obtenerEstadisticasSectores($proyectoObj, $filtroLider, $filtroEstado);
+            obtenerEstadisticasSectores($proyectoObj, $filtroLider, $filtroEstado, $filtroAno);
             break;
-            
+
+        case 'completados-vs-plan':
+            obtenerCompletadosVsPlan($proyectoObj, $filtroSector, $filtroLider, $filtroAno);
+            break;
+
+        case 'kpi-resumen':
+            obtenerKPIResumen($proyectoObj, $filtroSector, $filtroLider, $filtroAno);
+            break;
+
         case 'filtros':
             obtenerFiltrosEstadisticas($proyectoObj);
             break;
-            
+
         default:
-            echo json_encode([
-                'error' => 'Acción no válida'
-            ]);
+            echo json_encode(['error' => 'Acción no válida']);
     }
     
 } catch (Exception $e) {
@@ -57,31 +64,30 @@ try {
 }
 
 /**
- * Obtiene estadísticas de estados de proyectos
- * Acepta filtros de sector y líder, pero NUNCA de estado
+ * Obtiene estadísticas de estados de proyectos.
+ * Filtrado por año de creación, sector y líder (nunca por estado).
  */
-function obtenerEstadisticasEstados($proyectoObj, $filtroSector = '', $filtroLider = '') {
+function obtenerEstadisticasEstados($proyectoObj, $filtroSector = '', $filtroLider = '', $filtroAno = 0) {
     try {
         $conexion = $proyectoObj->getConexion();
-        
-        $sql = "SELECT Estado, COUNT(*) as cantidad 
-                FROM HistorialProyectos 
-                WHERE 1=1";
-        
-        $params = array();
-        
-        // Aplicar filtro de sector si se proporciona
+        $ano = $filtroAno > 0 ? $filtroAno : intval(date('Y'));
+
+        $sql = "SELECT Estado, COUNT(*) as cantidad
+                FROM HistorialProyectos
+                WHERE YEAR(FechaCreacion) = ?";
+
+        $params = array($ano);
+
         if (!empty($filtroSector)) {
             $sql .= " AND Sector = ?";
             $params[] = $filtroSector;
         }
-        
-        // Aplicar filtro de líder si se proporciona
+
         if (!empty($filtroLider)) {
             $sql .= " AND LiderProyecto = ?";
             $params[] = $filtroLider;
         }
-        
+
         $sql .= " GROUP BY Estado ORDER BY cantidad DESC";
         
         $stmt = sqlsrv_query($conexion, $sql, $params);
@@ -193,28 +199,30 @@ function obtenerProyectosFinalizadosPorAño($proyectoObj, $filtroSector = '', $f
 }
 
 /**
- * Obtiene estadísticas de sectores
+ * Obtiene estadísticas de sectores.
+ * Filtrado por año de creación, líder y estado.
  */
-function obtenerEstadisticasSectores($proyectoObj, $filtroLider = '', $filtroEstado = '') {
+function obtenerEstadisticasSectores($proyectoObj, $filtroLider = '', $filtroEstado = '', $filtroAno = 0) {
     try {
         $conexion = $proyectoObj->getConexion();
-        
-        $sql = "SELECT Sector, COUNT(*) as cantidad 
-                FROM HistorialProyectos 
-                WHERE 1=1";
-        
-        $params = array();
-        
+        $ano = $filtroAno > 0 ? $filtroAno : intval(date('Y'));
+
+        $sql = "SELECT Sector, COUNT(*) as cantidad
+                FROM HistorialProyectos
+                WHERE YEAR(FechaCreacion) = ?";
+
+        $params = array($ano);
+
         if (!empty($filtroLider)) {
             $sql .= " AND LiderProyecto = ?";
             $params[] = $filtroLider;
         }
-        
+
         if (!empty($filtroEstado)) {
             $sql .= " AND Estado = ?";
             $params[] = $filtroEstado;
         }
-        
+
         $sql .= " GROUP BY Sector ORDER BY cantidad DESC";
         
         $stmt = sqlsrv_query($conexion, $sql, $params);
@@ -251,6 +259,151 @@ function obtenerEstadisticasSectores($proyectoObj, $filtroLider = '', $filtroEst
     } catch (Exception $e) {
         error_log('Error en obtenerEstadisticasSectores: ' . $e->getMessage());
         echo json_encode(['error' => $e->getMessage()]);
+    }
+}
+
+/**
+ * Completados vs Plan por mes del año seleccionado.
+ * Devuelve 12 filas con: planificados, completados, acumulado, acumulado_plan, pct_sla.
+ */
+function obtenerCompletadosVsPlan($proyectoObj, $filtroSector = '', $filtroLider = '', $filtroAno = 0) {
+    try {
+        $conexion = $proyectoObj->getConexion();
+        $ano = $filtroAno > 0 ? $filtroAno : intval(date('Y'));
+
+        // Proyectos planificados: FechaLimite en el año seleccionado
+        $sqlPlan = "SELECT MONTH(FechaLimite) AS mes, COUNT(*) AS cantidad
+                    FROM HistorialProyectos
+                    WHERE FechaLimite IS NOT NULL AND YEAR(FechaLimite) = ?";
+        $paramsPlan = array($ano);
+        if (!empty($filtroSector)) { $sqlPlan .= " AND Sector = ?";        $paramsPlan[] = $filtroSector; }
+        if (!empty($filtroLider))  { $sqlPlan .= " AND LiderProyecto = ?"; $paramsPlan[] = $filtroLider; }
+        $sqlPlan .= " GROUP BY MONTH(FechaLimite)";
+
+        // Proyectos completados: FinalizacionReal en el año seleccionado y Estado = Terminado
+        $sqlComp = "SELECT MONTH(FinalizacionReal) AS mes, COUNT(*) AS cantidad
+                    FROM HistorialProyectos
+                    WHERE FinalizacionReal IS NOT NULL AND Estado = 'Terminado' AND YEAR(FinalizacionReal) = ?";
+        $paramsComp = array($ano);
+        if (!empty($filtroSector)) { $sqlComp .= " AND Sector = ?";        $paramsComp[] = $filtroSector; }
+        if (!empty($filtroLider))  { $sqlComp .= " AND LiderProyecto = ?"; $paramsComp[] = $filtroLider; }
+        $sqlComp .= " GROUP BY MONTH(FinalizacionReal)";
+
+        // SLA mensual: de los proyectos con FechaLimite en el mes/año, cuántos cerraron a tiempo
+        $sqlSLA = "SELECT MONTH(FechaLimite) AS mes,
+                          COUNT(*) AS total_fl,
+                          SUM(CASE WHEN Estado = 'Terminado' AND FinalizacionReal IS NOT NULL
+                                        AND FinalizacionReal <= FechaLimite THEN 1 ELSE 0 END) AS a_tiempo
+                   FROM HistorialProyectos
+                   WHERE FechaLimite IS NOT NULL AND YEAR(FechaLimite) = ?";
+        $paramsSLA = array($ano);
+        if (!empty($filtroSector)) { $sqlSLA .= " AND Sector = ?";        $paramsSLA[] = $filtroSector; }
+        if (!empty($filtroLider))  { $sqlSLA .= " AND LiderProyecto = ?"; $paramsSLA[] = $filtroLider; }
+        $sqlSLA .= " GROUP BY MONTH(FechaLimite)";
+
+        $planificados = array_fill(1, 12, 0);
+        $completados  = array_fill(1, 12, 0);
+        $slaData      = array_fill(1, 12, array('total' => 0, 'a_tiempo' => 0));
+
+        $stmtPlan = sqlsrv_query($conexion, $sqlPlan, $paramsPlan);
+        if ($stmtPlan === false) throw new Exception('Error planificados: ' . print_r(sqlsrv_errors(), true));
+        while ($row = sqlsrv_fetch_array($stmtPlan, SQLSRV_FETCH_ASSOC)) {
+            $planificados[intval($row['mes'])] = intval($row['cantidad']);
+        }
+
+        $stmtComp = sqlsrv_query($conexion, $sqlComp, $paramsComp);
+        if ($stmtComp === false) throw new Exception('Error completados: ' . print_r(sqlsrv_errors(), true));
+        while ($row = sqlsrv_fetch_array($stmtComp, SQLSRV_FETCH_ASSOC)) {
+            $completados[intval($row['mes'])] = intval($row['cantidad']);
+        }
+
+        $stmtSLA = sqlsrv_query($conexion, $sqlSLA, $paramsSLA);
+        if ($stmtSLA === false) throw new Exception('Error SLA mensual: ' . print_r(sqlsrv_errors(), true));
+        while ($row = sqlsrv_fetch_array($stmtSLA, SQLSRV_FETCH_ASSOC)) {
+            $slaData[intval($row['mes'])] = array(
+                'total'    => intval($row['total_fl']),
+                'a_tiempo' => intval($row['a_tiempo'])
+            );
+        }
+
+        $result          = array();
+        $acumComp        = 0;
+        $acumPlan        = 0;
+        $acumSLATotal    = 0;
+        $acumSLAaTiempo  = 0;
+        for ($i = 1; $i <= 12; $i++) {
+            $acumComp       += $completados[$i];
+            $acumPlan       += $planificados[$i];
+            $sla             = $slaData[$i];
+            $acumSLATotal   += $sla['total'];
+            $acumSLAaTiempo += $sla['a_tiempo'];
+            $pctSLA          = $sla['total']    > 0 ? round(($sla['a_tiempo']    / $sla['total'])    * 100, 1) : null;
+            $pctSLAacum      = $acumSLATotal    > 0 ? round(($acumSLAaTiempo    / $acumSLATotal)     * 100, 1) : null;
+            $result[] = array(
+                'mes'              => $i,
+                'planificados'     => $planificados[$i],
+                'completados'      => $completados[$i],
+                'acumulado'        => $acumComp,
+                'acumulado_plan'   => $acumPlan,
+                'pct_sla'          => $pctSLA,
+                'pct_sla_acumulado'=> $pctSLAacum
+            );
+        }
+
+        echo json_encode(array('success' => true, 'data' => $result));
+
+    } catch (Exception $e) {
+        error_log('Error en obtenerCompletadosVsPlan: ' . $e->getMessage());
+        echo json_encode(array('error' => $e->getMessage()));
+    }
+}
+
+/**
+ * KPIs globales del año seleccionado:
+ *   - pct_completados : % proyectos con FechaLimite en el año que fueron Terminados
+ *   - pct_sla         : % de esos terminados cuya FinalizacionReal <= FechaLimite
+ */
+function obtenerKPIResumen($proyectoObj, $filtroSector = '', $filtroLider = '', $filtroAno = 0) {
+    try {
+        $conexion = $proyectoObj->getConexion();
+        $ano = $filtroAno > 0 ? $filtroAno : intval(date('Y'));
+
+        $sql = "SELECT
+                    COUNT(*) AS total_plan,
+                    SUM(CASE WHEN Estado = 'Terminado' AND FinalizacionReal IS NOT NULL
+                             THEN 1 ELSE 0 END) AS completados,
+                    SUM(CASE WHEN Estado = 'Terminado' AND FinalizacionReal IS NOT NULL
+                                  AND FinalizacionReal <= FechaLimite
+                             THEN 1 ELSE 0 END) AS a_tiempo
+                FROM HistorialProyectos
+                WHERE FechaLimite IS NOT NULL AND YEAR(FechaLimite) = ?";
+        $params = array($ano);
+        if (!empty($filtroSector)) { $sql .= " AND Sector = ?";        $params[] = $filtroSector; }
+        if (!empty($filtroLider))  { $sql .= " AND LiderProyecto = ?"; $params[] = $filtroLider; }
+
+        $stmt = sqlsrv_query($conexion, $sql, $params);
+        if ($stmt === false) throw new Exception('Error KPI: ' . print_r(sqlsrv_errors(), true));
+
+        $row        = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+        $totalPlan  = intval($row['total_plan']);
+        $completados = intval($row['completados']);
+        $aTiempo    = intval($row['a_tiempo']);
+
+        $pctCompletados = $totalPlan  > 0 ? round(($completados / $totalPlan)  * 100, 1) : null;
+        $pctSLA         = $completados > 0 ? round(($aTiempo    / $completados) * 100, 1) : null;
+
+        echo json_encode(array(
+            'success'         => true,
+            'total_plan'      => $totalPlan,
+            'completados'     => $completados,
+            'a_tiempo'        => $aTiempo,
+            'pct_completados' => $pctCompletados,
+            'pct_sla'         => $pctSLA
+        ));
+
+    } catch (Exception $e) {
+        error_log('Error en obtenerKPIResumen: ' . $e->getMessage());
+        echo json_encode(array('error' => $e->getMessage()));
     }
 }
 

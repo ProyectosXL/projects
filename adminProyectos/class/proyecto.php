@@ -361,9 +361,40 @@ class Proyecto
                 // Agregar la columna FinalizacionReal
                 $sqlAlter = "ALTER TABLE HistorialProyectos ADD FinalizacionReal DATE";
                 $resultAlter = sqlsrv_query($this->cid_central, $sqlAlter);
-                
+
                 if ($resultAlter === false) {
                     throw new Exception('Error al agregar la columna FinalizacionReal: ' . print_r(sqlsrv_errors(), true));
+                }
+            }
+
+            // Verificar si la columna InicioProgramado existe, y si no, agregarla
+            $sql = "SELECT COUNT(*) AS count FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_NAME = 'HistorialProyectos' AND COLUMN_NAME = 'InicioProgramado'";
+            $result = sqlsrv_query($this->cid_central, $sql);
+
+            if ($result === false) {
+                throw new Exception('Error al verificar la columna InicioProgramado: ' . print_r(sqlsrv_errors(), true));
+            }
+
+            $row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC);
+
+            if ($row['count'] == 0) {
+                $sqlAlter = "ALTER TABLE HistorialProyectos ADD InicioProgramado DATE NULL";
+                $resultAlter = sqlsrv_query($this->cid_central, $sqlAlter);
+
+                if ($resultAlter === false) {
+                    throw new Exception('Error al agregar la columna InicioProgramado: ' . print_r(sqlsrv_errors(), true));
+                }
+            }
+
+            // Verificar si la columna Funcionalidad es NVARCHAR(MAX)
+            $sql = "SELECT CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = 'HistorialProyectos' AND COLUMN_NAME = 'Funcionalidad'";
+            $result = sqlsrv_query($this->cid_central, $sql);
+            if ($result && $row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
+                if ($row['CHARACTER_MAXIMUM_LENGTH'] != -1) {
+                    $sqlAlter = "ALTER TABLE HistorialProyectos ALTER COLUMN Funcionalidad NVARCHAR(MAX)";
+                    sqlsrv_query($this->cid_central, $sqlAlter);
                 }
             }
         }

@@ -1,227 +1,278 @@
 
-// Variables globales para los gráficos
-let chartEstados = null;
-let chartSectores = null;
-let chartFinalizados = null;
+// ─── Global chart instances ───────────────────────────────────────────────────
+let chartDistribucion    = null;
+let chartFinalizados     = null;
+let chartCompletadosVsPlan = null;
 
-// Configuración de colores para los gráficos
+const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
 const coloresEstados = {
-    'Pendiente': '#ffc107',
-    'Proceso': '#17a2b8', 
-    'Terminado': '#28a745',
-    'Pausado': '#fd7e14',
-    'Cancelado': '#dc3545',
+    'Pendiente':  '#ffc107',
+    'Proceso':    '#17a2b8',
+    'En Proceso': '#17a2b8',
+    'Terminado':  '#28a745',
+    'Pausado':    '#fd7e14',
+    'Cancelado':  '#dc3545',
     'Sin Estado': '#6c757d'
 };
 
 const coloresSectores = [
-    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
-    '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF',
-    '#4BC0C0', '#FF6384', '#36A2EB', '#FFCE56'
+    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+    '#9966FF', '#FF9F40', '#C9CBCF', '#7BC8A4',
+    '#E8C99A', '#A8D8EA', '#AA96DA', '#FCBAD3'
 ];
 
-// Objeto principal para manejar las estadísticas
+// ─── Main manager ─────────────────────────────────────────────────────────────
 const EstadisticasManager = {
-    // Inicializar la página
+
+    anoSeleccionado:   new Date().getFullYear(),
+    vistaDistribucion: 'estado',
+    datosEstados:      { data: [], total: 0 },
+    datosSectores:     { data: [], total: 0 },
+
+    // ── Init ──────────────────────────────────────────────────────────────────
     init: function() {
-        console.log('Inicializando página de estadísticas...');
         this.cargarFiltros();
-        this.setupEventListeners();
+        this.setupYearFilters();
+        try {
+            this.setupEventListeners();
+        } catch(e) {
+            console.error('setupEventListeners error:', e);
+        }
         this.cargarTodasLasEstadisticas();
     },
 
-    // Configurar event listeners
-    setupEventListeners: function() {
-        $('#btnAplicarFiltros').on('click', () => {
-            this.cargarTodasLasEstadisticas();
-        });
+    // ── Year quick filters ────────────────────────────────────────────────────
+    setupYearFilters: function() {
+        document.querySelectorAll('[data-year]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const now = new Date().getFullYear();
+                this.anoSeleccionado = btn.dataset.year === 'current' ? now : now - 1;
 
-        $('#btnResetFiltros').on('click', () => {
-            $('#filtroSector').val('');
-            $('#filtroLider').val('');
-            $('#filtroEstado').val('');
-            this.cargarTodasLasEstadisticas();
+                document.querySelectorAll('[data-year]').forEach(b => {
+                    b.classList.replace('btn-primary', 'btn-outline-secondary');
+                });
+                btn.classList.replace('btn-outline-secondary', 'btn-primary');
+
+                this.cargarTodasLasEstadisticas();
+            });
         });
     },
 
-    // Cargar filtros disponibles
+    // ── Event listeners ───────────────────────────────────────────────────────
+    setupEventListeners: function() {
+        $('#btnAplicarFiltros').on('click', () => this.cargarTodasLasEstadisticas());
+
+        $('#btnResetFiltros').on('click', () => {
+            $('#filtroSector, #filtroLider, #filtroEstado').val('');
+            this.cargarTodasLasEstadisticas();
+        });
+
+        // Distribution toggle
+        document.querySelectorAll('#toggleDistribucion button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('#toggleDistribucion button').forEach(b => {
+                    b.classList.remove('active', 'btn-light');
+                    b.classList.add('btn-outline-light');
+                });
+                btn.classList.remove('btn-outline-light');
+                btn.classList.add('active', 'btn-light');
+
+                this.vistaDistribucion = btn.dataset.vista;
+                if (this.vistaDistribucion === 'estado') {
+                    this.crearGraficoDistribucion(this.datosEstados.data, this.datosEstados.total, 'estado');
+                } else {
+                    this.crearGraficoDistribucion(this.datosSectores.data, this.datosSectores.total, 'sector');
+                }
+            });
+        });
+
+        // Bootstrap popovers for KPI info buttons
+        document.querySelectorAll('[data-bs-toggle="popover"]').forEach(el => {
+            try {
+                new bootstrap.Popover(el, { html: false, container: 'body' });
+            } catch(e) {
+                console.warn('Popover init failed for element:', el, e);
+            }
+        });
+    },
+
+    // ── Filter selects ────────────────────────────────────────────────────────
     cargarFiltros: function() {
-        console.log('Cargando filtros...');
-        
         fetch('api/estadisticas.php?action=filtros')
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
                 if (data.success) {
                     this.poblarSelect('filtroSector', data.sectores || []);
-                    this.poblarSelect('filtroLider', data.lideres || []);
-                    this.poblarSelect('filtroEstado', data.estados || []);
+                    this.poblarSelect('filtroLider',  data.lideres  || []);
+                    this.poblarSelect('filtroEstado', data.estados  || []);
                 } else {
-                    this.mostrarError('Error al cargar filtros: ' + (data.error || 'Error desconocido'));
+                    this.mostrarError('Error al cargar filtros: ' + (data.error || ''));
                 }
             })
-            .catch(error => {
-                console.error('Error:', error);
-                this.mostrarError('Error al cargar filtros');
-            });
+            .catch(() => this.mostrarError('Error al cargar filtros'));
     },
 
-    // Poblar un select con opciones
     poblarSelect: function(selectId, opciones) {
         const select = document.getElementById(selectId);
-        const defaultOption = select.options[0];
-        
+        const def = select.options[0];
         select.innerHTML = '';
-        select.appendChild(defaultOption);
-        
-        opciones.forEach(opcion => {
-            if (opcion) {
-                const option = document.createElement('option');
-                option.value = opcion;
-                option.textContent = opcion;
-                select.appendChild(option);
+        select.appendChild(def);
+        opciones.forEach(o => {
+            if (o) {
+                const opt = document.createElement('option');
+                opt.value = opt.textContent = o;
+                select.appendChild(opt);
             }
         });
     },
 
-    // Cargar todas las estadísticas
+    // ── Load all ──────────────────────────────────────────────────────────────
     cargarTodasLasEstadisticas: function() {
-        const filtroSector = $('#filtroSector').val();
-        const filtroLider = $('#filtroLider').val();
-        const filtroEstado = $('#filtroEstado').val();
+        const sector = $('#filtroSector').val() || '';
+        const lider  = $('#filtroLider').val()  || '';
+        const estado = $('#filtroEstado').val() || '';
+        const year   = this.anoSeleccionado;
 
-        console.log('Cargando estadísticas con filtros:', { filtroSector, filtroLider, filtroEstado });
-
-        // Mostrar loading en todas las cards
         $('.card').addClass('loading');
 
-        // Cargar cada tipo de estadística
-        this.cargarEstadisticasEstados(filtroSector, filtroLider); // Con filtros de sector y líder (NO estado)
-        this.cargarEstadisticasSectores(filtroLider, filtroEstado); // Con filtros de líder y estado
-        this.cargarProyectosFinalizados(filtroSector, filtroLider, filtroEstado); // Con todos los filtros
+        this.cargarEstadisticasEstados(sector, lider, year);
+        this.cargarEstadisticasSectores(lider, estado, year);
+        this.cargarProyectosFinalizados(sector, lider, estado);   // historical – no year filter
+        this.cargarCompletadosVsPlan(sector, lider, year);
+        this.cargarKPIResumen(sector, lider, year);
     },
 
-    // Cargar estadísticas de estados (SIN FILTRO DE ESTADO, CON OTROS FILTROS)
-    cargarEstadisticasEstados: function(filtroSector, filtroLider) {
-        // El gráfico de estados NO se filtra por estado, pero SÍ por sector y líder
-        const params = new URLSearchParams({
-            action: 'estados',
-            sector: filtroSector || '',
-            lider: filtroLider || ''
-            // Nota: NO incluimos 'estado' en los parámetros
-        });
-
+    // ── Loaders ───────────────────────────────────────────────────────────────
+    cargarEstadisticasEstados: function(sector, lider, year) {
+        const params = new URLSearchParams({ action: 'estados', sector, lider, year });
         fetch(`api/estadisticas.php?${params}`)
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
                 $('.card').removeClass('loading');
-                
-                if (data.success) {
-                    this.crearGraficoEstados(data.data, data.total);
-                    this.actualizarResumenEstados(data.data);
-                } else {
-                    this.mostrarError('Error al cargar estadísticas de estados: ' + (data.error || 'Error desconocido'));
+                if (!data.success) { this.mostrarError('Error estados: ' + (data.error || '')); return; }
+                this.datosEstados = { data: data.data, total: data.total };
+                this.actualizarResumenEstados(data.data);
+                if (this.vistaDistribucion === 'estado') {
+                    this.crearGraficoDistribucion(data.data, data.total, 'estado');
                 }
             })
-            .catch(error => {
-                $('.card').removeClass('loading');
-                console.error('Error:', error);
-                this.mostrarError('Error al cargar estadísticas de estados');
-            });
+            .catch(() => { $('.card').removeClass('loading'); this.mostrarError('Error al cargar estados'); });
     },
 
-    // Cargar estadísticas de sectores
-    cargarEstadisticasSectores: function(filtroLider, filtroEstado) {
-        const params = new URLSearchParams({
-            action: 'sectores',
-            lider: filtroLider || '',
-            estado: filtroEstado || ''
-        });
-
+    cargarEstadisticasSectores: function(lider, estado, year) {
+        const params = new URLSearchParams({ action: 'sectores', lider, estado, year });
         fetch(`api/estadisticas.php?${params}`)
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
-                if (data.success) {
-                    this.crearGraficoSectores(data.data, data.total);
-                } else {
-                    this.mostrarError('Error al cargar estadísticas de sectores: ' + (data.error || 'Error desconocido'));
+                if (!data.success) { this.mostrarError('Error sectores: ' + (data.error || '')); return; }
+                this.datosSectores = { data: data.data, total: data.total };
+                if (this.vistaDistribucion === 'sector') {
+                    this.crearGraficoDistribucion(data.data, data.total, 'sector');
                 }
             })
-            .catch(error => {
-                console.error('Error:', error);
-                this.mostrarError('Error al cargar estadísticas de sectores');
-            });
+            .catch(() => this.mostrarError('Error al cargar sectores'));
     },
 
-    // Cargar proyectos finalizados por año
-    cargarProyectosFinalizados: function(filtroSector, filtroLider, filtroEstado) {
-        const params = new URLSearchParams({
-            action: 'finalizados-por-año',
-            sector: filtroSector || '',
-            lider: filtroLider || '',
-            estado: filtroEstado || ''
-        });
-
+    cargarProyectosFinalizados: function(sector, lider, estado) {
+        // Historical view — intentionally no year filter
+        const params = new URLSearchParams({ action: 'finalizados-por-año', sector, lider, estado });
         fetch(`api/estadisticas.php?${params}`)
-            .then(response => response.json())
+            .then(r => r.json())
             .then(data => {
-                if (data.success) {
-                    this.crearGraficoFinalizados(data.data, data.usaFechaFinalizacion, data.estadoFiltrado);
-                } else {
-                    this.mostrarError('Error al cargar proyectos por año: ' + (data.error || 'Error desconocido'));
-                }
+                if (!data.success) { this.mostrarError('Error finalizados: ' + (data.error || '')); return; }
+                this.crearGraficoFinalizados(data.data, data.usaFechaFinalizacion, data.estadoFiltrado);
             })
-            .catch(error => {
-                console.error('Error:', error);
-                this.mostrarError('Error al cargar proyectos por año');
-            });
+            .catch(() => this.mostrarError('Error al cargar finalizados'));
     },
 
-    // Actualizar el resumen en las cards superiores - FUNCIÓN AÑADIDA
+    cargarCompletadosVsPlan: function(sector, lider, year) {
+        const params = new URLSearchParams({ action: 'completados-vs-plan', sector, lider, year });
+        fetch(`api/estadisticas.php?${params}`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { this.mostrarError('Error completados vs plan: ' + (data.error || '')); return; }
+                this.crearGraficoCompletadosVsPlan(data.data);
+            })
+            .catch(() => this.mostrarError('Error al cargar completados vs plan'));
+    },
+
+    cargarKPIResumen: function(sector, lider, year) {
+        const params = new URLSearchParams({ action: 'kpi-resumen', sector, lider, year });
+        fetch(`api/estadisticas.php?${params}`)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { this.mostrarError('Error KPI: ' + (data.error || '')); return; }
+                this.actualizarKPICards(data);
+            })
+            .catch(() => this.mostrarError('Error al cargar KPIs'));
+    },
+
+    // ── Summary cards update ──────────────────────────────────────────────────
     actualizarResumenEstados: function(datos) {
-        let totalProyectos = 0;
-        let terminados = 0;
-        let proceso = 0;
-        let pendientes = 0;
-
+        let total = 0, terminados = 0, proceso = 0, pendientes = 0;
         datos.forEach(item => {
-            totalProyectos += item.cantidad;
-            
-            switch(item.estado.toLowerCase()) {
-                case 'terminado':
-                    terminados = item.cantidad;
-                    break;
-                case 'proceso':
-                    proceso = item.cantidad;
-                    break;
-                case 'pendiente':
-                    pendientes = item.cantidad;
-                    break;
-            }
+            total += item.cantidad;
+            const e = (item.estado || '').toLowerCase();
+            if (e === 'terminado')               terminados = item.cantidad;
+            else if (e === 'proceso' || e === 'en proceso') proceso = item.cantidad;
+            else if (e === 'pendiente')          pendientes = item.cantidad;
         });
-
-        // Actualizar las cards
-        document.getElementById('totalProyectos').textContent = totalProyectos;
-        document.getElementById('proyectosTerminados').textContent = terminados;
-        document.getElementById('proyectosProceso').textContent = proceso;
-        document.getElementById('proyectosPendientes').textContent = pendientes;
+        document.getElementById('totalProyectos').textContent       = total;
+        document.getElementById('proyectosTerminados').textContent  = terminados;
+        document.getElementById('proyectosProceso').textContent     = proceso;
+        document.getElementById('proyectosPendientes').textContent  = pendientes;
     },
 
-    crearGraficoEstados: function(datos, total) {
-        const ctx = document.getElementById('chartEstados').getContext('2d');
-        if (chartEstados) chartEstados.destroy();
-        
-        const labels = datos.map(item => item.estado);
-        const values = datos.map(item => item.cantidad);
-        const colors = datos.map(item => coloresEstados[item.estado] || '#6c757d');
-        
-        chartEstados = new Chart(ctx, {
+    // ── KPI cards update ──────────────────────────────────────────────────────
+    actualizarKPICards: function(data) {
+        const pctComp = data.pct_completados;
+        const pctSLA  = data.pct_sla;
+
+        // KPI 1 — Completados vs Plan
+        document.getElementById('kpiPctCompletados').textContent =
+            pctComp !== null ? pctComp.toFixed(1) : '—';
+        document.getElementById('kpiBarCompletados').style.width = (pctComp || 0) + '%';
+        document.getElementById('kpiTextCompletados').textContent =
+            data.total_plan > 0
+                ? `${data.completados} de ${data.total_plan} proyectos cerrados`
+                : 'Sin proyectos con fecha límite en el período';
+
+        // KPI 2 — SLA
+        document.getElementById('kpiPctSLA').textContent =
+            pctSLA !== null ? pctSLA.toFixed(1) : '—';
+        const barSLA = document.getElementById('kpiBarSLA');
+        barSLA.style.width = (pctSLA || 0) + '%';
+        barSLA.className = 'progress-bar ' + (
+            pctSLA === null ? 'bg-secondary' :
+            pctSLA >= 85    ? 'bg-success'   :
+            pctSLA >= 60    ? 'bg-warning'   : 'bg-danger'
+        );
+        document.getElementById('kpiTextSLA').textContent =
+            data.completados > 0
+                ? `${data.a_tiempo} de ${data.completados} cerrados a tiempo · objetivo 85%`
+                : 'Sin proyectos terminados en el período';
+    },
+
+    // ── Charts ────────────────────────────────────────────────────────────────
+    crearGraficoDistribucion: function(datos, total, tipo) {
+        const ctx = document.getElementById('chartDistribucion').getContext('2d');
+        if (chartDistribucion) chartDistribucion.destroy();
+
+        const labels = datos.map(d => tipo === 'estado' ? d.estado : d.sector);
+        const values = datos.map(d => d.cantidad);
+        const colors = tipo === 'estado'
+            ? datos.map(d => coloresEstados[d.estado] || '#6c757d')
+            : datos.map((_, i) => coloresSectores[i % coloresSectores.length]);
+
+        chartDistribucion = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: labels,
+                labels,
                 datasets: [{
                     data: values,
                     backgroundColor: colors,
-                    borderColor: colors.map(color => color + '80'),
+                    borderColor: colors.map(c => c + '80'),
                     borderWidth: 2,
                     hoverOffset: 10
                 }]
@@ -233,87 +284,57 @@ const EstadisticasManager = {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            label: function(context) {
-                                const porcentaje = ((context.raw / total) * 100).toFixed(1);
-                                return `${context.label}: ${context.raw} (${porcentaje}%)`;
+                            label: ctx => {
+                                const pct = total > 0 ? ((ctx.raw / total) * 100).toFixed(1) : 0;
+                                return `${ctx.label}: ${ctx.raw} (${pct}%)`;
                             }
                         }
                     }
                 },
-                animation: {
-                    animateScale: true,
-                    duration: 1000
-                }
+                animation: { animateScale: true, duration: 800 }
             }
         });
-        this.crearLeyenda('leyendaEstados', datos, colors);
+
+        this.crearLeyenda('leyendaDistribucion', datos, colors, tipo);
     },
 
-    crearGraficoSectores: function(datos, total) {
-        const ctx = document.getElementById('chartSectores').getContext('2d');
-        if (chartSectores) chartSectores.destroy();
-        
-        const labels = datos.map(item => item.sector);
-        const values = datos.map(item => item.cantidad);
-        const colors = datos.map((item, index) => coloresSectores[index % coloresSectores.length]);
-        
-        chartSectores = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: labels,
-                datasets: [{
-                    data: values,
-                    backgroundColor: colors,
-                    borderColor: colors.map(color => color + '80'),
-                    borderWidth: 2,
-                    hoverOffset: 10
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                const porcentaje = ((context.raw / total) * 100).toFixed(1);
-                                return `${context.label}: ${context.raw} (${porcentaje}%)`;
-                            }
-                        }
-                    }
-                },
-                animation: {
-                    animateScale: true,
-                    duration: 1000
-                }
-            }
+    crearLeyenda: function(containerId, datos, colors, tipo) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        container.innerHTML = '';
+        datos.forEach((item, i) => {
+            const el = document.createElement('div');
+            el.className = 'legend-item';
+            el.innerHTML = `
+                <div class="legend-color" style="background:${colors[i]}"></div>
+                <span class="legend-text">${tipo === 'sector' ? item.sector : item.estado}</span>
+                <span class="legend-count">${item.cantidad}</span>`;
+            container.appendChild(el);
         });
-        this.crearLeyenda('leyendaSectores', datos, colors);
     },
 
     crearGraficoFinalizados: function(datos, usaFechaFinalizacion, estadoFiltrado) {
         const ctx = document.getElementById('chartFinalizados').getContext('2d');
         if (chartFinalizados) chartFinalizados.destroy();
-        
-        const labels = datos.map(item => item.año.toString());
-        const values = datos.map(item => item.cantidad);
 
-        let titulo, color, descripcion;
+        const labels = datos.map(d => d.año.toString());
+        const values = datos.map(d => d.cantidad);
+        let titulo, color, nota;
+
         if (estadoFiltrado && estadoFiltrado !== 'Terminado') {
             titulo = `Proyectos "${estadoFiltrado}" por Año`;
-            color = coloresEstados[estadoFiltrado] || 'rgba(108, 117, 125, 0.8)';
-            descripcion = `* Se muestran proyectos con estado "${estadoFiltrado}" por año de creación`;
+            color  = coloresEstados[estadoFiltrado] || 'rgba(108,117,125,0.8)';
+            nota   = `Proyectos "${estadoFiltrado}" por año de creación`;
         } else {
             titulo = 'Proyectos Finalizados por Año';
-            color = 'rgba(40, 167, 69, 0.8)';
-            descripcion = '* Solo se muestran proyectos con fecha de finalización real';
+            color  = 'rgba(40,167,69,0.8)';
+            nota   = 'Solo proyectos con fecha de finalización real';
         }
 
         chartFinalizados = new Chart(ctx, {
             type: 'bar',
             data: {
-                labels: labels,
+                labels,
                 datasets: [{
                     label: titulo,
                     data: values,
@@ -331,15 +352,93 @@ const EstadisticasManager = {
                     legend: { display: false },
                     tooltip: {
                         callbacks: {
-                            title: function(context) {
-                                return `Año ${context[0].label}`;
-                            },
+                            title: ctx => `Año ${ctx[0].label}`,
+                            label: ctx => estadoFiltrado && estadoFiltrado !== 'Terminado'
+                                ? `Proyectos ${estadoFiltrado}: ${ctx.raw}`
+                                : `Proyectos finalizados: ${ctx.raw}`
+                        }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: 'rgba(0,0,0,0.08)' } },
+                    x: { grid: { display: false } }
+                },
+                animation: { duration: 1000, easing: 'easeOutQuart' }
+            }
+        });
+
+        const hdr = document.querySelector('#chartFinalizados').closest('.card').querySelector('.card-header h5');
+        if (hdr) hdr.innerHTML = `<i class="fas fa-chart-bar me-2"></i>${titulo}`;
+        const ftr = document.querySelector('#chartFinalizados').closest('.card').querySelector('.text-center small');
+        if (ftr) ftr.textContent = '* ' + nota;
+    },
+
+    crearGraficoCompletadosVsPlan: function(datos) {
+        const ctx = document.getElementById('chartCompletadosVsPlan').getContext('2d');
+        if (chartCompletadosVsPlan) chartCompletadosVsPlan.destroy();
+
+        chartCompletadosVsPlan = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: MESES,
+                datasets: [
+                    {
+                        label: 'Planificados (Fecha Límite)',
+                        data: datos.map(d => d.planificados),
+                        backgroundColor: 'rgba(54,162,235,0.7)',
+                        borderColor:     'rgba(54,162,235,1)',
+                        borderWidth: 2,
+                        borderRadius: 4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Completados (Terminado)',
+                        data: datos.map(d => d.completados),
+                        backgroundColor: 'rgba(75,192,100,0.7)',
+                        borderColor:     'rgba(75,192,100,1)',
+                        borderWidth: 2,
+                        borderRadius: 4,
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'Acumulado completados',
+                        data: datos.map(d => d.acumulado),
+                        type: 'line',
+                        borderColor:     'rgba(255,159,64,1)',
+                        backgroundColor: 'rgba(255,159,64,0.08)',
+                        borderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        fill: false,
+                        tension: 0.3,
+                        yAxisID: 'y2'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { display: true, position: 'top' },
+                    tooltip: {
+                        callbacks: {
                             label: function(context) {
-                                if (estadoFiltrado && estadoFiltrado !== 'Terminado') {
-                                    return `Proyectos ${estadoFiltrado}: ${context.raw}`;
-                                } else {
-                                    return `Proyectos finalizados: ${context.raw}`;
-                                }
+                                const d = datos[context.dataIndex];
+                                if (context.datasetIndex === 0) return `Planificados ese mes: ${d.planificados}`;
+                                if (context.datasetIndex === 1) return `Completados ese mes: ${d.completados}`;
+                                if (context.datasetIndex === 2) return `Acumulado completados: ${d.acumulado}`;
+                            },
+                            afterBody: function(contexts) {
+                                if (!contexts.length) return [];
+                                const d = datos[contexts[0].dataIndex];
+                                const sla     = d.pct_sla          !== null ? d.pct_sla.toFixed(1)          + '%' : 'Sin datos';
+                                const slaAcum = d.pct_sla_acumulado !== null ? d.pct_sla_acumulado.toFixed(1) + '%' : 'Sin datos';
+                                return [
+                                    `Acumulado planificados: ${d.acumulado_plan}`,
+                                    `% SLA ese mes: ${sla}`,
+                                    `% SLA acumulado: ${slaAcum}`
+                                ];
                             }
                         }
                     }
@@ -347,94 +446,40 @@ const EstadisticasManager = {
                 scales: {
                     y: {
                         beginAtZero: true,
+                        position: 'left',
                         ticks: { stepSize: 1 },
-                        grid: { color: 'rgba(0,0,0,0.1)' }
+                        title: { display: true, text: 'Cantidad mensual' },
+                        grid: { color: 'rgba(0,0,0,0.08)' }
                     },
-                    x: {
-                        grid: { display: false }
-                    }
+                    y2: {
+                        beginAtZero: true,
+                        position: 'right',
+                        ticks: { stepSize: 1 },
+                        title: { display: true, text: 'Acumulado' },
+                        grid: { drawOnChartArea: false }
+                    },
+                    x: { grid: { display: false } }
                 },
-                animation: {
-                    duration: 1000,
-                    easing: 'easeOutQuart'
-                }
+                animation: { duration: 1000, easing: 'easeOutQuart' }
             }
         });
-
-        this.actualizarTituloGraficoFinalizados(titulo, descripcion);
     },
 
-    actualizarTituloGraficoFinalizados: function(titulo, descripcion) {
-        const headerElement = document.querySelector('#chartFinalizados').closest('.card').querySelector('.card-header h5');
-        if (headerElement) {
-            headerElement.innerHTML = `<i class="fas fa-chart-bar me-2"></i>${titulo}`;
-        }
-        const footerElement = document.querySelector('#chartFinalizados').closest('.card').querySelector('.text-center small');
-        if (footerElement) {
-            footerElement.textContent = descripcion;
-        }
-    },
-
-    crearLeyenda: function(containerId, datos, colors) {
-        const container = document.getElementById(containerId);
-        container.innerHTML = '';
-        
-        datos.forEach((item, index) => {
-            const legendItem = document.createElement('div');
-            legendItem.className = 'legend-item';
-            
-            const colorBox = document.createElement('div');
-            colorBox.className = 'legend-color';
-            colorBox.style.backgroundColor = colors[index];
-            
-            const text = document.createElement('span');
-            text.className = 'legend-text';
-            text.textContent = item.estado || item.sector;
-            
-            const count = document.createElement('span');
-            count.className = 'legend-count';
-            count.textContent = item.cantidad;
-            
-            legendItem.appendChild(colorBox);
-            legendItem.appendChild(text);
-            legendItem.appendChild(count);
-            container.appendChild(legendItem);
-        });
-    },
-
-    // Función para mostrar errores - FUNCIÓN AÑADIDA
+    // ── Error helper ─────────────────────────────────────────────────────────
     mostrarError: function(mensaje) {
         console.error(mensaje);
-        
-        // Crear alerta de error
-        const alertContainer = document.getElementById('alertContainer') || document.querySelector('.container-fluid');
-        if (alertContainer) {
-            const alert = document.createElement('div');
-            alert.className = 'alert alert-danger alert-dismissible fade show';
-            alert.innerHTML = `
-                <i class="fas fa-exclamation-circle me-2"></i>
-                ${mensaje}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            
-            if (document.getElementById('alertContainer')) {
-                document.getElementById('alertContainer').appendChild(alert);
-            } else {
-                alertContainer.insertBefore(alert, alertContainer.firstChild);
-            }
-            
-            // Auto-cerrar después de 5 segundos
-            setTimeout(() => {
-                if (alert.parentNode) {
-                    alert.remove();
-                }
-            }, 5000);
-        }
+        const container = document.getElementById('alertContainer');
+        if (!container) return;
+        const div = document.createElement('div');
+        div.className = 'alert alert-danger alert-dismissible fade show';
+        div.innerHTML = `<i class="fas fa-exclamation-circle me-2"></i>${mensaje}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>`;
+        container.appendChild(div);
+        setTimeout(() => { if (div.parentNode) div.remove(); }, 5000);
     }
 };
 
-// Inicializar cuando el documento esté listo
+// ── Bootstrap ─────────────────────────────────────────────────────────────────
 $(document).ready(function() {
     EstadisticasManager.init();
-    console.log('✅ Página de estadísticas cargada correctamente');
 });
