@@ -601,6 +601,7 @@ inicializarFiltroGlobal: function() {
             const finMesSig    = new Date(hoy.getFullYear(), hoy.getMonth() + 2, 0);
             finMesSig.setHours(23, 59, 59, 999);
 
+
             const estadoRaw = (rowData.Estado || '').toLowerCase();
 
             const parseDate = (val) => {
@@ -616,6 +617,7 @@ inicializarFiltroGlobal: function() {
                 if (filtro === 'vencen-mes-siguiente' && fechaLimite && fechaLimite >= inicioMesSig    && fechaLimite <= finMesSig)    { chipMatch = true; break; }
                 if (filtro === 'atrasados'            && fechaLimite && fechaLimite < hoy
                     && estadoRaw !== 'finalizado' && estadoRaw !== 'cancelado' && estadoRaw !== 'terminado' && estadoRaw !== 'pausado') { chipMatch = true; break; }
+                if (filtro === 'proximos-meses'      && fechaLimite && fechaLimite >= inicioMesSig) { chipMatch = true; break; }
             }
             if (!chipMatch) return false;
         }

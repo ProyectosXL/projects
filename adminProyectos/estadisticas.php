@@ -125,12 +125,15 @@
 
         <!-- Page title -->
         <div class="row mb-2">
-            <div class="col-12">
+            <div class="col-12 d-flex align-items-center justify-content-between flex-wrap gap-2">
                 <h5 class="text-secondary mb-0"><i class="fas fa-chart-pie me-2"></i>Dashboard de Estadísticas</h5>
+                <button class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#modalAyudaTablero">
+                    <i class="fas fa-question-circle me-1"></i>¿Cómo leer este tablero?
+                </button>
             </div>
         </div>
 
-        <!-- 1. Year quick filter -->
+        <!-- 1. Year + month quick filter -->
         <div class="row mb-3">
             <div class="col-12 d-flex align-items-center gap-2 flex-wrap">
                 <span class="text-muted small fw-semibold me-1">Período:</span>
@@ -140,6 +143,22 @@
                 <button id="btnAnoAnterior" class="btn btn-outline-secondary btn-sm year-filter-btn" data-year="previous">
                     <i class="fas fa-calendar me-1"></i>Año Anterior
                 </button>
+                <select id="filtroMes" class="form-select form-select-sm" style="max-width:150px" title="Filtrar KPIs por mes">
+                    <option value="">Todo el año</option>
+                    <option value="1">Enero</option>
+                    <option value="2">Febrero</option>
+                    <option value="3">Marzo</option>
+                    <option value="4">Abril</option>
+                    <option value="5">Mayo</option>
+                    <option value="6">Junio</option>
+                    <option value="7">Julio</option>
+                    <option value="8">Agosto</option>
+                    <option value="9">Septiembre</option>
+                    <option value="10">Octubre</option>
+                    <option value="11">Noviembre</option>
+                    <option value="12">Diciembre</option>
+                </select>
+                <span id="periodoActivo" class="badge bg-primary ms-1">...</span>
             </div>
         </div>
 
@@ -183,18 +202,24 @@
         <!-- Alert container -->
         <div id="alertContainer"></div>
 
-        <!-- 2 + 3. Unified KPI row: 4 summary cards + 2 KPI cards -->
+        <!-- Bloque A: Resumen del año — por Fecha de Creación -->
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <h6 class="text-muted fw-semibold mb-0">
+                <i class="fas fa-list me-1"></i>Resumen — por Fecha de Creación
+            </h6>
+            <small class="text-muted">(año <span id="anoResumenLabel">2026</span> · el filtro de mes no afecta estas cards)</small>
+        </div>
         <div class="row mb-4">
 
             <!-- Card 1: Total Proyectos -->
-            <div class="col-xl-2 col-md-4 mb-3">
+            <div class="col-xl-3 col-md-6 mb-3">
                 <div class="card text-center bg-primary text-white h-100 position-relative">
                     <button class="kpi-info-btn"
                         data-bs-toggle="popover"
                         data-bs-placement="top"
                         data-bs-trigger="hover focus"
                         title="Total Proyectos"
-                        data-bs-content="Total de proyectos cuya fecha de creación corresponde al año seleccionado, considerando los filtros activos.">
+                        data-bs-content="Cuenta proyectos cuya Fecha de Creación corresponde al año seleccionado, con los filtros de sector y líder activos. Se mide por año de creación (FechaCreacion); no se ve afectada por el filtro de mes.">
                         <i class="fas fa-circle-info fa-lg"></i>
                     </button>
                     <div class="card-body">
@@ -206,14 +231,14 @@
             </div>
 
             <!-- Card 2: Terminados -->
-            <div class="col-xl-2 col-md-4 mb-3">
+            <div class="col-xl-3 col-md-6 mb-3">
                 <div class="card text-center bg-success text-white h-100 position-relative">
                     <button class="kpi-info-btn"
                         data-bs-toggle="popover"
                         data-bs-placement="top"
                         data-bs-trigger="hover focus"
                         title="Terminados"
-                        data-bs-content="Proyectos con estado 'Terminado' dentro del año seleccionado.">
+                        data-bs-content="Proyectos con estado 'Terminado' cuya Fecha de Creación es del año seleccionado. Se cuenta por año de creación (FechaCreacion); no se afecta por el filtro de mes.">
                         <i class="fas fa-circle-info fa-lg"></i>
                     </button>
                     <div class="card-body">
@@ -225,14 +250,14 @@
             </div>
 
             <!-- Card 3: En Proceso -->
-            <div class="col-xl-2 col-md-4 mb-3">
+            <div class="col-xl-3 col-md-6 mb-3">
                 <div class="card text-center bg-warning text-dark h-100 position-relative">
                     <button class="kpi-info-btn"
                         data-bs-toggle="popover"
                         data-bs-placement="top"
                         data-bs-trigger="hover focus"
                         title="En Proceso"
-                        data-bs-content="Proyectos con estado 'En Proceso' dentro del año seleccionado.">
+                        data-bs-content="Proyectos con estado 'En Proceso' cuya Fecha de Creación es del año seleccionado. Se cuenta por año de creación (FechaCreacion); no se afecta por el filtro de mes.">
                         <i class="fas fa-circle-info fa-lg" style="color:rgba(0,0,0,0.5)"></i>
                     </button>
                     <div class="card-body">
@@ -244,14 +269,14 @@
             </div>
 
             <!-- Card 4: Pendientes -->
-            <div class="col-xl-2 col-md-4 mb-3">
+            <div class="col-xl-3 col-md-6 mb-3">
                 <div class="card text-center bg-info text-white h-100 position-relative">
                     <button class="kpi-info-btn"
                         data-bs-toggle="popover"
                         data-bs-placement="top"
                         data-bs-trigger="hover focus"
                         title="Pendientes"
-                        data-bs-content="Proyectos con estado 'Pendiente' dentro del año seleccionado.">
+                        data-bs-content="Proyectos con estado 'Pendiente' cuya Fecha de Creación es del año seleccionado. Se cuenta por año de creación (FechaCreacion); no se afecta por el filtro de mes.">
                         <i class="fas fa-circle-info fa-lg"></i>
                     </button>
                     <div class="card-body">
@@ -262,8 +287,19 @@
                 </div>
             </div>
 
-            <!-- Card 5: Completados vs Plan % -->
-            <div class="col-xl-2 col-md-4 mb-3">
+        </div>
+
+        <!-- Bloque B: Indicadores del período — según Fecha Límite -->
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <h6 class="text-muted fw-semibold mb-0">
+                <i class="fas fa-bullseye me-1"></i>Indicadores del período (según Fecha Límite)
+            </h6>
+            <small class="text-muted">(responden al filtro de año y mes)</small>
+        </div>
+        <div class="row mb-4">
+
+            <!-- KPI 1: Completados vs Plan % -->
+            <div class="col-12 col-md-6 col-xl-4 mb-3">
                 <div class="card kpi-card h-100 position-relative">
                     <div class="card-body p-3">
                         <button class="kpi-info-btn"
@@ -271,7 +307,7 @@
                             data-bs-placement="top"
                             data-bs-trigger="hover focus"
                             title="¿Cómo se calcula?"
-                            data-bs-content="Porcentaje de proyectos con fecha límite en el año seleccionado que fueron formalmente cerrados (Estado = Terminado con Finalización Real registrada).">
+                            data-bs-content="Proyectos con Fecha Límite dentro del período (año + mes si está seleccionado), filtrados por sector y líder. Se excluyen los proyectos con estado Pausado. Fórmula: cerrados (Estado Terminado con Finalización Real) ÷ total del período × 100. No depende del filtro de Estado.">
                             <i class="fas fa-circle-info fa-lg"></i>
                         </button>
                         <p class="kpi-label">Completados vs Plan</p>
@@ -283,12 +319,15 @@
                             <div class="progress-bar bg-info" id="kpiBarCompletados" role="progressbar" style="width:0%;transition:width .8s ease"></div>
                         </div>
                         <p class="kpi-sub" id="kpiTextCompletados">&nbsp;</p>
+                        <button class="btn btn-sm btn-outline-light mt-2 w-100 btn-ver-proyectos" data-tipo="completados">
+                            <i class="fas fa-list me-1"></i>Ver proyectos
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <!-- Card 6: % Cumplimiento SLA -->
-            <div class="col-xl-2 col-md-4 mb-3">
+            <!-- KPI 2: % Cumplimiento SLA -->
+            <div class="col-12 col-md-6 col-xl-4 mb-3">
                 <div class="card kpi-card h-100 position-relative">
                     <div class="card-body p-3">
                         <button class="kpi-info-btn"
@@ -296,7 +335,7 @@
                             data-bs-placement="top"
                             data-bs-trigger="hover focus"
                             title="¿Cómo se calcula?"
-                            data-bs-content="Porcentaje de proyectos terminados cuya Finalización Real fue igual o anterior a la Fecha Límite acordada. Objetivo: 85%.">
+                            data-bs-content="Sobre los proyectos completados del período: porcentaje cuya Finalización Real fue igual o anterior a la Fecha Límite. Objetivo: 85%.">
                             <i class="fas fa-circle-info fa-lg"></i>
                         </button>
                         <p class="kpi-label">% Cumplimiento SLA</p>
@@ -308,6 +347,9 @@
                             <div class="progress-bar" id="kpiBarSLA" role="progressbar" style="width:0%;transition:width .8s ease"></div>
                         </div>
                         <p class="kpi-sub" id="kpiTextSLA">&nbsp;</p>
+                        <button class="btn btn-sm btn-outline-light mt-2 w-100 btn-ver-proyectos" data-tipo="sla">
+                            <i class="fas fa-list me-1"></i>Ver proyectos
+                        </button>
                     </div>
                 </div>
             </div>
@@ -383,6 +425,89 @@
         </div>
 
     </div><!-- /container-fluid -->
+
+    <!-- ═══ Modal: KPI Detalle ═══════════════════════════════════════════════ -->
+    <div class="modal fade" id="modalKpiDetalle" tabindex="-1" aria-labelledby="kpiDetalleTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white py-2">
+                    <h5 class="modal-title" id="kpiDetalleTitulo">Detalle KPI</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <!-- Franja de resumen fija — no scrollea -->
+                <div id="kpiDetalleHeader" class="kpi-detalle-header">
+                    <p id="kpiDetalleNota" class="text-muted small mb-2"></p>
+                    <div id="kpiDetalleResumen"></div>
+                </div>
+                <!-- Tabla scrollable -->
+                <div class="modal-body p-0">
+                    <table class="table table-hover align-middle mb-0 kpi-detalle-table">
+                        <thead class="table-dark kpi-thead-sticky">
+                            <tr>
+                                <th class="ps-3">ID</th>
+                                <th>Desarrollo</th>
+                                <th>Sector</th>
+                                <th>Desarrollador</th>
+                                <th>Fecha Límite</th>
+                                <th>Finalización Real</th>
+                                <th>Estado</th>
+                                <th>Clasificación</th>
+                            </tr>
+                        </thead>
+                        <tbody id="kpiDetalleTabla">
+                            <tr><td colspan="8" class="text-center text-muted py-3">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer py-2">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Modal: Ayuda del tablero ═════════════════════════════════════════ -->
+    <div class="modal fade" id="modalAyudaTablero" tabindex="-1" aria-labelledby="ayudaTableroTitulo" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="ayudaTableroTitulo"><i class="fas fa-question-circle me-2"></i>¿Cómo leer este tablero?</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">Esta guía explica cómo interpretar los datos y por qué distintas métricas pueden mostrar valores diferentes ante los mismos filtros.</p>
+
+                    <h6 class="fw-semibold mt-3">¿Qué período estoy viendo?</h6>
+                    <p>El tablero tiene <strong>dos bloques que usan fechas de referencia distintas</strong>:</p>
+                    <ul>
+                        <li><strong>Indicadores del período (KPIs)</strong>: se calculan sobre proyectos cuya <em>Fecha Límite</em> cae en el año (y mes, si está seleccionado). Responden al filtro de mes.</li>
+                        <li><strong>Cards de resumen (Total, Terminados, En Proceso, Pendientes)</strong>: cuentan proyectos por su <em>Fecha de Creación</em>. Solo filtran por año — no se ven afectadas por el filtro de mes.</li>
+                    </ul>
+                    <p>Por eso pueden mostrar números distintos aunque usen el mismo año.</p>
+
+                    <hr>
+                    <h6 class="fw-semibold">Completados vs Plan</h6>
+                    <p>Mide qué porcentaje de los proyectos planificados para el período se completaron formalmente.<br>
+                    <strong>Universo:</strong> todos los proyectos con Fecha Límite en el período, filtrados por sector y líder.<br>
+                    <strong>Fórmula:</strong> proyectos con Estado = Terminado y Finalización Real registrada ÷ total del universo × 100.<br>
+                    <em>No depende del filtro de Estado.</em></p>
+
+                    <h6 class="fw-semibold">% Cumplimiento SLA</h6>
+                    <p>Sobre los proyectos completados del período, mide cuántos cerraron a tiempo.<br>
+                    <strong>Universo:</strong> solo los proyectos completados (del indicador anterior).<br>
+                    <strong>Fórmula:</strong> proyectos con Finalización Real ≤ Fecha Límite ÷ total completados × 100.<br>
+                    <strong>Objetivo:</strong> 85%.</p>
+
+                    <hr>
+                    <h6 class="fw-semibold">El filtro de mes</h6>
+                    <p>Al seleccionar un mes, <strong>solo se actualizan los 2 KPIs</strong>: se recalculan sobre proyectos cuya Fecha Límite sea de ese mes y año. Las cards de resumen y los gráficos <strong>no cambian</strong>: siguen mostrando el año completo.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>

@@ -4,7 +4,26 @@ let chartDistribucion    = null;
 let chartFinalizados     = null;
 let chartCompletadosVsPlan = null;
 
-const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const MESES      = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function colorChipDesarrollador(nombre) {
+    if (!nombre) return { bg: '#e9ecef', color: '#6c757d' };
+    let hash = 0;
+    for (let i = 0; i < nombre.length; i++) {
+        hash = nombre.charCodeAt(i) + ((hash << 5) - hash);
+        hash |= 0;
+    }
+    const hue = Math.abs(hash) % 360;
+    return { bg: `hsl(${hue},55%,88%)`, color: `hsl(${hue},55%,28%)` };
+}
 
 const coloresEstados = {
     'Pendiente':  '#ffc107',
@@ -25,15 +44,18 @@ const coloresSectores = [
 // ─── Main manager ─────────────────────────────────────────────────────────────
 const EstadisticasManager = {
 
-    anoSeleccionado:   new Date().getFullYear(),
-    vistaDistribucion: 'estado',
-    datosEstados:      { data: [], total: 0 },
-    datosSectores:     { data: [], total: 0 },
+    anoSeleccionado:      new Date().getFullYear(),
+    mesSeleccionado:      0,
+    kpiDetalleTipoActivo: null,
+    vistaDistribucion:    'estado',
+    datosEstados:         { data: [], total: 0 },
+    datosSectores:        { data: [], total: 0 },
 
     // ── Init ──────────────────────────────────────────────────────────────────
     init: function() {
         this.cargarFiltros();
         this.setupYearFilters();
+        this.actualizarPeriodoBadge();
         try {
             this.setupEventListeners();
         } catch(e) {
@@ -54,6 +76,7 @@ const EstadisticasManager = {
                 });
                 btn.classList.replace('btn-outline-secondary', 'btn-primary');
 
+                this.actualizarPeriodoBadge();
                 this.cargarTodasLasEstadisticas();
             });
         });
@@ -65,7 +88,26 @@ const EstadisticasManager = {
 
         $('#btnResetFiltros').on('click', () => {
             $('#filtroSector, #filtroLider, #filtroEstado').val('');
+            $('#filtroMes').val('');
+            this.mesSeleccionado = 0;
+            this.actualizarPeriodoBadge();
             this.cargarTodasLasEstadisticas();
+        });
+
+        $('#filtroMes').on('change', () => {
+            this.mesSeleccionado = parseInt($('#filtroMes').val()) || 0;
+            this.actualizarPeriodoBadge();
+            this.cargarKPIResumen();
+            const modalEl = document.getElementById('modalKpiDetalle');
+            if (modalEl && modalEl.classList.contains('show') && this.kpiDetalleTipoActivo) {
+                this.cargarKPIDetalle(this.kpiDetalleTipoActivo);
+            }
+        });
+
+        $(document).on('click', '.btn-ver-proyectos', (e) => {
+            const tipo = e.currentTarget.dataset.tipo;
+            this.kpiDetalleTipoActivo = tipo;
+            this.cargarKPIDetalle(tipo);
         });
 
         // Distribution toggle
@@ -140,7 +182,7 @@ const EstadisticasManager = {
         this.cargarEstadisticasSectores(lider, estado, year);
         this.cargarProyectosFinalizados(sector, lider, estado);   // historical – no year filter
         this.cargarCompletadosVsPlan(sector, lider, year);
-        this.cargarKPIResumen(sector, lider, year);
+        this.cargarKPIResumen();
     },
 
     // ── Loaders ───────────────────────────────────────────────────────────────
@@ -197,8 +239,11 @@ const EstadisticasManager = {
             .catch(() => this.mostrarError('Error al cargar completados vs plan'));
     },
 
-    cargarKPIResumen: function(sector, lider, year) {
-        const params = new URLSearchParams({ action: 'kpi-resumen', sector, lider, year });
+    cargarKPIResumen: function() {
+        const sector = $('#filtroSector').val() || '';
+        const lider  = $('#filtroLider').val()  || '';
+        const year   = this.anoSeleccionado;
+        const params = new URLSearchParams({ action: 'kpi-resumen', sector, lider, year, month: this.mesSeleccionado });
         fetch(`api/estadisticas.php?${params}`)
             .then(r => r.json())
             .then(data => {
@@ -463,6 +508,120 @@ const EstadisticasManager = {
                 animation: { duration: 1000, easing: 'easeOutQuart' }
             }
         });
+    },
+
+    // ── Period badge ──────────────────────────────────────────────────────────
+    actualizarPeriodoBadge: function() {
+        const badge = document.getElementById('periodoActivo');
+        if (badge) badge.textContent = 'Mostrando: ' + this.textoPeriodo();
+        const anoLabel = document.getElementById('anoResumenLabel');
+        if (anoLabel) anoLabel.textContent = this.anoSeleccionado;
+    },
+
+    textoPeriodo: function() {
+        if (this.mesSeleccionado > 0) {
+            return MESES_FULL[this.mesSeleccionado - 1] + ' ' + this.anoSeleccionado;
+        }
+        return 'Año ' + this.anoSeleccionado;
+    },
+
+    // ── KPI Detail modal ──────────────────────────────────────────────────────
+    cargarKPIDetalle: function(tipo) {
+        const sector  = $('#filtroSector').val() || '';
+        const lider   = $('#filtroLider').val()  || '';
+        const year    = this.anoSeleccionado;
+        const month   = this.mesSeleccionado;
+        const periodo = this.textoPeriodo();
+
+        const titulo = tipo === 'completados'
+            ? 'Proyectos del plan — Completados vs Plan'
+            : 'Proyectos evaluados — SLA';
+        document.getElementById('kpiDetalleTitulo').textContent = titulo;
+
+        const filtrosActivos = [];
+        if (sector) filtrosActivos.push('sector: ' + sector);
+        if (lider)  filtrosActivos.push('líder: ' + lider);
+        const sufijo = filtrosActivos.length > 0 ? ' · Filtros: ' + filtrosActivos.join(', ') : '';
+        let nota = 'Proyectos cuya Fecha Límite cae en ' + periodo + sufijo + '.';
+        if (tipo === 'completados') nota += ' Se excluyen los proyectos pausados.';
+        document.getElementById('kpiDetalleNota').textContent = nota;
+        document.getElementById('kpiDetalleResumen').textContent = '';
+        document.getElementById('kpiDetalleTabla').innerHTML =
+            '<tr><td colspan="8" class="text-center text-muted py-3">' +
+            '<i class="fas fa-spinner fa-spin me-2"></i>Cargando...</td></tr>';
+
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('modalKpiDetalle')).show();
+
+        const params = new URLSearchParams({ action: 'kpi-detalle', tipo, sector, lider, year, month });
+        fetch('api/estadisticas.php?' + params)
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) { this.mostrarError('Error al cargar detalle: ' + (data.error || '')); return; }
+                this.pintarTablaKPIDetalle(data);
+            })
+            .catch(() => this.mostrarError('Error al cargar detalle KPI'));
+    },
+
+    pintarTablaKPIDetalle: function(data) {
+        const Y = data.total;
+        const X = data.cumplen;
+        const pct = Y > 0 ? (X / Y * 100).toFixed(1) : null;
+        const pctDisplay = pct !== null ? pct + '%' : '—';
+
+        // Color del badge de porcentaje según tipo y umbral
+        let badgePctClass;
+        if (data.tipo === 'sla') {
+            badgePctClass = pct === null        ? 'bg-secondary'
+                : parseFloat(pct) >= 85         ? 'bg-success'
+                : parseFloat(pct) >= 60         ? 'bg-warning text-dark'
+                :                                 'bg-danger';
+        } else {
+            badgePctClass = (pct !== null && parseFloat(pct) === 100) ? 'bg-success' : 'bg-secondary';
+        }
+        const label = data.tipo === 'completados' ? 'completados' : 'a tiempo';
+
+        // Franja de resumen con métrica destacada
+        document.getElementById('kpiDetalleResumen').innerHTML =
+            '<div class="d-flex align-items-center gap-4 flex-wrap">' +
+                '<div>' +
+                    '<div class="kpi-detalle-count">' + X +
+                        '<span class="text-muted fw-normal" style="font-size:.65em"> / ' + Y + '</span>' +
+                    '</div>' +
+                    '<div class="small text-muted">' + label + '</div>' +
+                '</div>' +
+                '<span class="badge rounded-pill ' + badgePctClass + ' kpi-detalle-pct-badge">' + pctDisplay + '</span>' +
+            '</div>';
+
+        const tbody = document.getElementById('kpiDetalleTabla');
+        if (!data.proyectos || data.proyectos.length === 0) {
+            tbody.innerHTML =
+                '<tr><td colspan="8" class="text-center py-4">' +
+                '<i class="fas fa-inbox fa-2x text-muted d-block mb-2"></i>' +
+                '<span class="text-muted">No hay proyectos para el período y filtros seleccionados.</span>' +
+                '</td></tr>';
+            return;
+        }
+        tbody.innerHTML = data.proyectos.map(p => {
+            const badgeClass = (p.clasificacion === 'Completado' || p.clasificacion === 'A tiempo')
+                ? 'bg-success'
+                : (p.clasificacion === 'No completado' ? 'bg-secondary' : 'bg-danger');
+            const devNombre = p.desarrollador || '';
+            const devDisplay = devNombre || 'Sin asignar';
+            const chip = colorChipDesarrollador(devNombre || null);
+            const devChip = '<span style="background:' + chip.bg + ';color:' + chip.color +
+                ';font-size:0.78rem;padding:0.2em 0.6em;border-radius:999px;white-space:nowrap;font-weight:500">' +
+                escapeHtml(devDisplay) + '</span>';
+            return '<tr>' +
+                '<td class="text-nowrap ps-3">' + p.id + '</td>' +
+                '<td>' + escapeHtml(p.desarrollo || '') + '</td>' +
+                '<td>' + escapeHtml(p.sector || '') + '</td>' +
+                '<td class="text-nowrap">' + devChip + '</td>' +
+                '<td class="text-nowrap">' + p.fecha_limite + '</td>' +
+                '<td class="text-nowrap">' + p.finalizacion_real + '</td>' +
+                '<td class="text-nowrap"><span class="badge rounded-pill badge-estado">' + escapeHtml(p.estado || '') + '</span></td>' +
+                '<td class="text-nowrap"><span class="badge rounded-pill badge-clasificacion ' + badgeClass + '">' + escapeHtml(p.clasificacion) + '</span></td>' +
+                '</tr>';
+        }).join('');
     },
 
     // ── Error helper ─────────────────────────────────────────────────────────

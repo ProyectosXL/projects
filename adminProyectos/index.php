@@ -96,6 +96,11 @@ error_reporting(E_ALL);
             color: white;
             border-color: #dc3545;
         }
+        .chip-fecha[data-filtro="proximos-meses"].active {
+            background-color: #198754;
+            color: white;
+            border-color: #198754;
+        }
 
         /* Botón ordenar por prioridad activo */
         #btnOrdenarPrioridad.active {
@@ -247,6 +252,9 @@ error_reporting(E_ALL);
             </button>
             <button class="btn btn-sm btn-outline-danger chip-fecha" data-filtro="atrasados">
                 <i class="fas fa-exclamation-triangle me-1"></i>Atrasados
+            </button>
+            <button class="btn btn-sm btn-outline-success chip-fecha" data-filtro="proximos-meses">
+                <i class="fas fa-calendar-week me-1"></i>Vencen próximos meses
             </button>
             <span class="text-muted small border-start ps-3 ms-1"><i class="fas fa-sort-amount-down me-1"></i>Ordenar:</span>
             <button class="btn btn-sm btn-outline-secondary" id="btnOrdenarPrioridad" title="Ordena: Urgente → Alta → Media → Baja → Sin asignar">

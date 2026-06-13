@@ -20,7 +20,8 @@ try {
     $filtroSector = isset($_GET['sector']) ? $_GET['sector'] : '';
     $filtroLider  = isset($_GET['lider'])  ? $_GET['lider']  : '';
     $filtroEstado = isset($_GET['estado']) ? $_GET['estado'] : '';
-    $filtroAno    = isset($_GET['year'])   ? intval($_GET['year']) : intval(date('Y'));
+    $filtroAno    = isset($_GET['year'])   ? intval($_GET['year'])  : intval(date('Y'));
+    $filtroMes    = isset($_GET['month'])  ? intval($_GET['month']) : 0;
 
     switch ($action) {
         case 'estados':
@@ -41,7 +42,12 @@ try {
             break;
 
         case 'kpi-resumen':
-            obtenerKPIResumen($proyectoObj, $filtroSector, $filtroLider, $filtroAno);
+            obtenerKPIResumen($proyectoObj, $filtroSector, $filtroLider, $filtroAno, $filtroMes);
+            break;
+
+        case 'kpi-detalle':
+            $tipo = isset($_GET['tipo']) ? $_GET['tipo'] : '';
+            obtenerKPIDetalle($proyectoObj, $tipo, $filtroSector, $filtroLider, $filtroAno, $filtroMes);
             break;
 
         case 'filtros':
@@ -363,7 +369,7 @@ function obtenerCompletadosVsPlan($proyectoObj, $filtroSector = '', $filtroLider
  *   - pct_completados : % proyectos con FechaLimite en el año que fueron Terminados
  *   - pct_sla         : % de esos terminados cuya FinalizacionReal <= FechaLimite
  */
-function obtenerKPIResumen($proyectoObj, $filtroSector = '', $filtroLider = '', $filtroAno = 0) {
+function obtenerKPIResumen($proyectoObj, $filtroSector = '', $filtroLider = '', $filtroAno = 0, $filtroMes = 0) {
     try {
         $conexion = $proyectoObj->getConexion();
         $ano = $filtroAno > 0 ? $filtroAno : intval(date('Y'));
@@ -378,8 +384,10 @@ function obtenerKPIResumen($proyectoObj, $filtroSector = '', $filtroLider = '', 
                 FROM HistorialProyectos
                 WHERE FechaLimite IS NOT NULL AND YEAR(FechaLimite) = ?";
         $params = array($ano);
-        if (!empty($filtroSector)) { $sql .= " AND Sector = ?";        $params[] = $filtroSector; }
-        if (!empty($filtroLider))  { $sql .= " AND LiderProyecto = ?"; $params[] = $filtroLider; }
+        if ($filtroMes > 0)        { $sql .= " AND MONTH(FechaLimite) = ?"; $params[] = $filtroMes; }
+        if (!empty($filtroSector)) { $sql .= " AND Sector = ?";             $params[] = $filtroSector; }
+        if (!empty($filtroLider))  { $sql .= " AND LiderProyecto = ?";      $params[] = $filtroLider; }
+        $sql .= " AND (Estado IS NULL OR Estado <> 'Pausado')";
 
         $stmt = sqlsrv_query($conexion, $sql, $params);
         if ($stmt === false) throw new Exception('Error KPI: ' . print_r(sqlsrv_errors(), true));
@@ -403,6 +411,89 @@ function obtenerKPIResumen($proyectoObj, $filtroSector = '', $filtroLider = '', 
 
     } catch (Exception $e) {
         error_log('Error en obtenerKPIResumen: ' . $e->getMessage());
+        echo json_encode(array('error' => $e->getMessage()));
+    }
+}
+
+/**
+ * Detalle de proyectos para un KPI.
+ * tipo='completados': universo completo del período, clasificado como Completado / No completado.
+ * tipo='sla': solo los completados del período, clasificado como A tiempo / Tarde.
+ */
+function obtenerKPIDetalle($proyectoObj, $tipo, $filtroSector = '', $filtroLider = '', $filtroAno = 0, $filtroMes = 0) {
+    try {
+        $conexion = $proyectoObj->getConexion();
+        $ano = $filtroAno > 0 ? $filtroAno : intval(date('Y'));
+
+        $sql = "SELECT
+                    ID,
+                    Desarrollo,
+                    Sector,
+                    Desarrollador,
+                    CONVERT(varchar(10), FechaLimite, 23)      AS FechaLimiteStr,
+                    CONVERT(varchar(10), FinalizacionReal, 23) AS FinalizacionRealStr,
+                    Estado,
+                    CASE WHEN Estado = 'Terminado' AND FinalizacionReal IS NOT NULL
+                              AND FinalizacionReal <= FechaLimite THEN 1 ELSE 0 END AS aTiempo
+                FROM HistorialProyectos
+                WHERE FechaLimite IS NOT NULL AND YEAR(FechaLimite) = ?";
+        $params = array($ano);
+
+        if ($filtroMes > 0)        { $sql .= " AND MONTH(FechaLimite) = ?"; $params[] = $filtroMes; }
+        if (!empty($filtroSector)) { $sql .= " AND Sector = ?";             $params[] = $filtroSector; }
+        if (!empty($filtroLider))  { $sql .= " AND LiderProyecto = ?";      $params[] = $filtroLider; }
+
+        if ($tipo === 'completados') {
+            $sql .= " AND (Estado IS NULL OR Estado <> 'Pausado')";
+        }
+
+        if ($tipo === 'sla') {
+            $sql .= " AND Estado = 'Terminado' AND FinalizacionReal IS NOT NULL";
+        }
+
+        $sql .= " ORDER BY FechaLimite ASC";
+
+        $stmt = sqlsrv_query($conexion, $sql, $params);
+        if ($stmt === false) throw new Exception('Error KPI detalle: ' . print_r(sqlsrv_errors(), true));
+
+        $proyectos = array();
+        $cumplen   = 0;
+
+        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $fechaLim = $row['FechaLimiteStr']     ?: '-';
+            $finReal  = $row['FinalizacionRealStr'] !== null ? $row['FinalizacionRealStr'] : '-';
+
+            if ($tipo === 'completados') {
+                $esComp        = ($row['Estado'] === 'Terminado' && $row['FinalizacionRealStr'] !== null && $row['FinalizacionRealStr'] !== '');
+                $clasificacion = $esComp ? 'Completado' : 'No completado';
+            } else {
+                $clasificacion = intval($row['aTiempo']) ? 'A tiempo' : 'Tarde';
+            }
+
+            if ($clasificacion === 'Completado' || $clasificacion === 'A tiempo') $cumplen++;
+
+            $proyectos[] = array(
+                'id'                => intval($row['ID']),
+                'desarrollo'        => $row['Desarrollo'],
+                'sector'            => $row['Sector'],
+                'desarrollador'     => $row['Desarrollador'],
+                'fecha_limite'      => $fechaLim,
+                'finalizacion_real' => $finReal,
+                'estado'            => $row['Estado'],
+                'clasificacion'     => $clasificacion
+            );
+        }
+
+        echo json_encode(array(
+            'success'   => true,
+            'tipo'      => $tipo,
+            'proyectos' => $proyectos,
+            'total'     => count($proyectos),
+            'cumplen'   => $cumplen
+        ));
+
+    } catch (Exception $e) {
+        error_log('Error en obtenerKPIDetalle: ' . $e->getMessage());
         echo json_encode(array('error' => $e->getMessage()));
     }
 }
