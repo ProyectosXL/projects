@@ -2,6 +2,9 @@
 
 class Proyecto
 {
+    // Ventana de aceptación tácita para la etapa "Validación cliente", en días corridos
+    const DIAS_VENTANA_ACEPTACION = 10;
+
     private $conexion;
     private $cid_central;
     
@@ -252,7 +255,11 @@ class Proyecto
                 InicioReal DATE NULL,
                 FinalizacionReal DATE NULL,
                 Prioridad NVARCHAR(50) NULL,
-                URLRequerimiento NVARCHAR(500) NULL
+                URLRequerimiento NVARCHAR(500) NULL,
+                FechaEntregaCliente DATETIME NULL,
+                FechaAprobacionCliente DATETIME NULL,
+                TipoAprobacionCliente VARCHAR(10) NULL,
+                UsuarioAprobacionCliente VARCHAR(100) NULL
             )";
             
             $resultCrear = sqlsrv_query($this->cid_central, $sqlCrear);
@@ -388,13 +395,93 @@ class Proyecto
             }
 
             // Verificar si la columna Funcionalidad es NVARCHAR(MAX)
-            $sql = "SELECT CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS 
+            $sql = "SELECT CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS
                 WHERE TABLE_NAME = 'HistorialProyectos' AND COLUMN_NAME = 'Funcionalidad'";
             $result = sqlsrv_query($this->cid_central, $sql);
             if ($result && $row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
                 if ($row['CHARACTER_MAXIMUM_LENGTH'] != -1) {
                     $sqlAlter = "ALTER TABLE HistorialProyectos ALTER COLUMN Funcionalidad NVARCHAR(MAX)";
                     sqlsrv_query($this->cid_central, $sqlAlter);
+                }
+            }
+
+            // Columnas de validación del cliente (etapa "Validación cliente")
+            $columnasValidacionCliente = [
+                'FechaEntregaCliente' => 'DATETIME NULL',
+                'FechaAprobacionCliente' => 'DATETIME NULL',
+                'TipoAprobacionCliente' => 'VARCHAR(10) NULL',
+                'UsuarioAprobacionCliente' => 'VARCHAR(100) NULL'
+            ];
+
+            foreach ($columnasValidacionCliente as $columna => $tipo) {
+                $sql = "SELECT COUNT(*) AS count FROM INFORMATION_SCHEMA.COLUMNS
+                    WHERE TABLE_NAME = 'HistorialProyectos' AND COLUMN_NAME = ?";
+                $result = sqlsrv_query($this->cid_central, $sql, array($columna));
+
+                if ($result === false) {
+                    throw new Exception("Error al verificar la columna $columna: " . print_r(sqlsrv_errors(), true));
+                }
+
+                $row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC);
+
+                if ($row['count'] == 0) {
+                    $sqlAlter = "ALTER TABLE HistorialProyectos ADD $columna $tipo";
+                    $resultAlter = sqlsrv_query($this->cid_central, $sqlAlter);
+
+                    if ($resultAlter === false) {
+                        throw new Exception("Error al agregar la columna $columna: " . print_r(sqlsrv_errors(), true));
+                    }
+                }
+            }
+
+            // Migración de datos: renombrar etapas antiguas a los nuevos nombres
+            $renombresEtapas = [
+                'Prueba y evaluación' => 'Validación cliente',
+                'Modificaciones/correcciones' => 'Correcciones y mejoras'
+            ];
+
+            foreach ($renombresEtapas as $etapaAnterior => $etapaNueva) {
+                $sql = "SELECT COUNT(*) AS count FROM HistorialProyectos WHERE EtapaProyecto = ?";
+                $result = sqlsrv_query($this->cid_central, $sql, array($etapaAnterior));
+
+                if ($result === false) {
+                    throw new Exception("Error al verificar etapas pendientes de renombrar ($etapaAnterior): " . print_r(sqlsrv_errors(), true));
+                }
+
+                $row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC);
+
+                if ($row['count'] > 0) {
+                    $sqlUpdate = "UPDATE HistorialProyectos SET EtapaProyecto = ? WHERE EtapaProyecto = ?";
+                    $resultUpdate = sqlsrv_query($this->cid_central, $sqlUpdate, array($etapaNueva, $etapaAnterior));
+
+                    if ($resultUpdate === false) {
+                        throw new Exception("Error al renombrar etapa '$etapaAnterior' a '$etapaNueva': " . print_r(sqlsrv_errors(), true));
+                    }
+                }
+            }
+
+            // Migración de datos: renombrar sectores antiguos a los nuevos nombres
+            $renombresSectores = [
+                'Locales propios' => 'Sucursales'
+            ];
+
+            foreach ($renombresSectores as $sectorAnterior => $sectorNuevo) {
+                $sql = "SELECT COUNT(*) AS count FROM HistorialProyectos WHERE Sector = ?";
+                $result = sqlsrv_query($this->cid_central, $sql, array($sectorAnterior));
+
+                if ($result === false) {
+                    throw new Exception("Error al verificar sectores pendientes de renombrar ($sectorAnterior): " . print_r(sqlsrv_errors(), true));
+                }
+
+                $row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC);
+
+                if ($row['count'] > 0) {
+                    $sqlUpdate = "UPDATE HistorialProyectos SET Sector = ? WHERE Sector = ?";
+                    $resultUpdate = sqlsrv_query($this->cid_central, $sqlUpdate, array($sectorNuevo, $sectorAnterior));
+
+                    if ($resultUpdate === false) {
+                        throw new Exception("Error al renombrar sector '$sectorAnterior' a '$sectorNuevo': " . print_r(sqlsrv_errors(), true));
+                    }
                 }
             }
         }
@@ -591,7 +678,41 @@ class Proyecto
             if (!$this->cid_central) {
                 throw new Exception("No hay conexión a la base de datos central");
             }
-            
+
+            // Si la etapa cambia, leemos la etapa anterior y los datos del proyecto
+            // una sola vez: sirven tanto para la regla de "Validación cliente" como
+            // para notificar por mail el cambio de etapa una vez guardado.
+            $etapaAnterior = null;
+            $nombreProyectoActual = null;
+            $solicitanteActual = null;
+            $liderActual = null;
+
+            if (array_key_exists('EtapaProyecto', $datos)) {
+                $sqlEtapaActual = "SELECT EtapaProyecto, Desarrollo, Solicitante, LiderProyecto FROM HistorialProyectos WHERE ID = ?";
+                $resultEtapaActual = sqlsrv_query($this->cid_central, $sqlEtapaActual, array($id));
+
+                if ($resultEtapaActual === false) {
+                    throw new Exception("Error al verificar la etapa actual del proyecto: " . print_r(sqlsrv_errors(), true));
+                }
+
+                $rowEtapaActual = sqlsrv_fetch_array($resultEtapaActual, SQLSRV_FETCH_ASSOC);
+                $etapaAnterior = $rowEtapaActual['EtapaProyecto'] ?? null;
+                $nombreProyectoActual = $rowEtapaActual['Desarrollo'] ?? null;
+                $solicitanteActual = $rowEtapaActual['Solicitante'] ?? null;
+                $liderActual = $rowEtapaActual['LiderProyecto'] ?? null;
+
+                // Regla de negocio: al entrar a "Validación cliente" se registra la fecha
+                // de entrega y se limpia cualquier aprobación previa, para que arranque
+                // una ventana de aceptación tácita nueva (cubre tanto la primera entrega
+                // como cada reingreso después de una corrección)
+                if ($datos['EtapaProyecto'] === 'Validación cliente' && $etapaAnterior !== 'Validación cliente') {
+                    $datos['FechaEntregaCliente'] = date('Y-m-d H:i:s');
+                    $datos['FechaAprobacionCliente'] = null;
+                    $datos['TipoAprobacionCliente'] = null;
+                    $datos['UsuarioAprobacionCliente'] = null;
+                }
+            }
+
             // Preparar la consulta SQL para actualizar los campos
             $camposActualizar = [];
             $params = [];
@@ -620,16 +741,67 @@ class Proyecto
             if ($result === false) {
                 throw new Exception("Error al actualizar el proyecto: " . print_r(sqlsrv_errors(), true));
             }
-            
+
+            if ($etapaAnterior !== null && $etapaAnterior !== $datos['EtapaProyecto']) {
+                $this->notificarCambioEtapa($id, $nombreProyectoActual, $datos['EtapaProyecto'], $solicitanteActual, $liderActual);
+            }
+
             return true;
-            
+
         } catch (\Throwable $th) {
             error_log("Error en actualizarProyecto: " . $th->getMessage());
             throw $th;
         }
     }
-    
-    public function agregarComentario($idProyecto, $autor, $comentario) 
+
+    /**
+     * Notifica por mail (Database Mail) el cambio de etapa de un proyecto al
+     * Solicitante y al LiderProyecto. Nunca propaga errores: un fallo al
+     * notificar no debe afectar el cambio de etapa que ya se guardó.
+     */
+    private function notificarCambioEtapa($id, $nombreProyecto, $etapaNueva, $solicitanteNombre, $liderNombre)
+    {
+        try {
+            $mailSolicitante = $this->resolverMailPorNombre($solicitanteNombre);
+            $mailLider = $this->resolverMailPorNombre($liderNombre);
+
+            if (!$mailSolicitante && !$mailLider) {
+                return;
+            }
+
+            $sql = "EXEC dbo.RO_SP_NOTIF_CAMBIO_ETAPA @IdProyecto = ?, @NombreProyecto = ?, @EstadoNuevo = ?, @MailSolicitante = ?, @MailLider = ?";
+            $result = sqlsrv_query($this->cid_central, $sql, array($id, $nombreProyecto, $etapaNueva, $mailSolicitante, $mailLider));
+
+            if ($result === false) {
+                error_log("Error al notificar cambio de etapa para proyecto $id: " . print_r(sqlsrv_errors(), true));
+            }
+        } catch (\Throwable $th) {
+            error_log("Error en notificarCambioEtapa: " . $th->getMessage());
+        }
+    }
+
+    /**
+     * Busca el mail de una persona por su nombre en RO_USUARIOS_CARGA_PROYECTOS,
+     * reusando obtenerSolicitantes() (Solicitante/LiderProyecto son texto libre).
+     */
+    private function resolverMailPorNombre($nombre)
+    {
+        if (empty($nombre)) {
+            return null;
+        }
+
+        $nombreNormalizado = mb_strtolower(trim($nombre));
+
+        foreach ($this->obtenerSolicitantes() as $persona) {
+            if (mb_strtolower(trim($persona['NOMBRE_APELLIDO'])) === $nombreNormalizado) {
+                return $persona['MAIL'];
+            }
+        }
+
+        return null;
+    }
+
+    public function agregarComentario($idProyecto, $autor, $comentario)
     {
         // Comprobamos si la tabla existe, si no, la creamos
         $this->verificarTablasComentarios();
@@ -908,8 +1080,9 @@ class Proyecto
     private function formatearFechas(&$row) {
         // Formatear todas las fechas en el array
         $camposFecha = [
-            'FechaCreacion', 'FechaFinalizacion', 'InicioProgramado', 
-            'FechaLimite', 'InicioReal', 'FinalizacionReal'
+            'FechaCreacion', 'FechaFinalizacion', 'InicioProgramado',
+            'FechaLimite', 'InicioReal', 'FinalizacionReal',
+            'FechaEntregaCliente', 'FechaAprobacionCliente'
         ];
         
         foreach ($camposFecha as $campo) {
@@ -928,8 +1101,8 @@ class Proyecto
             'Diagnostico' => 0.15,
             'Diseño' => 0.30,
             'Desarrollo' => 0.45,
-            'Prueba y evaluación' => 0.60,
-            'Modificaciones/correcciones' => 0.75,
+            'Validación cliente' => 0.60,
+            'Correcciones y mejoras' => 0.75,
             'Implementación' => 0.85,
             'Finalizado' => 1.00
         ];
@@ -942,8 +1115,8 @@ class Proyecto
                 3 => 'Diagnostico',
                 4 => 'Diseño',
                 5 => 'Desarrollo',
-                7 => 'Prueba y evaluación',
-                8 => 'Modificaciones/correcciones',
+                7 => 'Validación cliente',
+                8 => 'Correcciones y mejoras',
                 9 => 'Implementación',
                 10 => 'Finalizado'
             ];

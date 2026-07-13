@@ -106,11 +106,16 @@ const DetalleProyectoPestanas = {
         });
         
         // Actualizar descripción
-        this.actualizarElemento('proyectoDescripcion', 
-            this.proyectoData.Funcionalidad ? 
-            this.proyectoData.Funcionalidad.replace(/\n/g, '<br>') : 
+        this.actualizarElemento('proyectoDescripcion',
+            this.proyectoData.Funcionalidad ?
+            this.proyectoData.Funcionalidad.replace(/\n/g, '<br>') :
             'Sin descripción', true);
-        
+
+        // Actualizar bloque de validación del cliente
+        if (typeof DetalleProyectoValidacionCliente !== 'undefined') {
+            DetalleProyectoValidacionCliente.actualizar(this.proyectoData);
+        }
+
         console.log('Interfaz actualizada correctamente');
     },
     
@@ -175,30 +180,5 @@ const DetalleProyectoPestanas = {
         
         tabla.innerHTML = html;
     }
-    
-};
 
-        // Actualizar prioridad
-        const prioridadElement = document.getElementById('proyectoPrioridad');
-        if (prioridadElement) {
-            const prioridad = this.proyectoData.Prioridad || 'Sin asignar';
-            prioridadElement.textContent = prioridad;
-            
-            // Determinar clase CSS para prioridad
-            let clasePrioridad = '';
-            const prioridadLower = prioridad.toLowerCase();
-            
-            if (prioridadLower.includes('urgente')) {
-                clasePrioridad = 'prioridad-urgente';
-            } else if (prioridadLower.includes('alta')) {
-                clasePrioridad = 'prioridad-alta';
-            } else if (prioridadLower.includes('media')) {
-                clasePrioridad = 'prioridad-media';
-            } else if (prioridadLower.includes('baja')) {
-                clasePrioridad = 'prioridad-baja';
-            } else if (prioridadLower.includes('sin asignar') || !this.proyectoData.Prioridad) {
-                clasePrioridad = 'prioridad-sin-asignar';
-            }
-            
-            prioridadElement.className = `prioridad-badge ${clasePrioridad}`;
-        }
+};

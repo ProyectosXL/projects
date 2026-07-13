@@ -34,9 +34,9 @@ const DetalleProyecto = {
         // Establecer el dispatcher de eventos personalizado
         this.setupEventDispatcher();
         
-        // Auto-cerrar alertas después de 5 segundos
+        // Auto-cerrar alertas después de 5 segundos (solo mensajes flash, no bloques persistentes como la validación del cliente)
         setTimeout(function() {
-            document.querySelectorAll('.alert').forEach(alert => {
+            document.querySelectorAll('#alertContainer .alert').forEach(alert => {
                 if (alert && bootstrap) {
                     const bsAlert = new bootstrap.Alert(alert);
                     bsAlert.close();

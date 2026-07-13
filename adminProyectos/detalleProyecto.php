@@ -2,8 +2,9 @@
 <?php
 
 session_start();
+require_once 'class/proyecto.php';
 
-?>  
+?>
 
 <head>
     <meta charset="UTF-8">
@@ -85,7 +86,27 @@ session_start();
                 </div>
             </div>
         </div>
-        
+
+        <!-- Bloque de validación del cliente (solo visible en etapa "Validación cliente") -->
+        <div id="bloqueValidacionCliente" class="alert alert-primary d-none mb-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <h5 class="mb-1"><i class="fas fa-user-check me-2"></i>Validación del cliente pendiente</h5>
+                    <p class="mb-0 text-muted" id="textoVentanaAceptacion"></p>
+                </div>
+                <?php if (isset($_SESSION['username'])): ?>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-success" id="btnValidarAprobar">
+                            <i class="fas fa-check me-2"></i>Validar / Aprobar
+                        </button>
+                        <button type="button" class="btn btn-outline-warning" id="btnRequiereCorrecciones">
+                            <i class="fas fa-edit me-2"></i>Requiere correcciones
+                        </button>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
         <!-- Pestañas de información -->
         <ul class="nav nav-tabs" id="projectTabs" role="tablist">
             <li class="nav-item" role="presentation">
@@ -261,6 +282,28 @@ session_start();
         </div>
     </div>
 
+    <!-- Modal de Requiere Correcciones -->
+    <?php if (isset($_SESSION['username'])): ?>
+        <div class="modal fade" id="modalCorrecciones" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning">
+                        <h5 class="modal-title">Requiere correcciones</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label for="textoCorrecciones" class="form-label">Motivo / qué corregir (opcional)</label>
+                        <textarea class="form-control" id="textoCorrecciones" rows="4" placeholder="Describa qué debe corregirse..."></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="button" class="btn btn-warning" id="btnConfirmarCorrecciones">Confirmar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    <?php endif; ?>
+
     <!-- Modal de Detalles del Comentario -->
     <div class="modal fade" id="detalleComentarioModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
@@ -294,12 +337,17 @@ session_start();
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- Custom JS -->
+    <script>
+        const DIAS_VENTANA_ACEPTACION = <?php echo Proyecto::DIAS_VENTANA_ACEPTACION; ?>;
+        const usuarioLogueado = <?php echo isset($_SESSION['username']) ? 'true' : 'false'; ?>;
+    </script>
     <script src="js/detalleProyectoUI.js"></script>
     <script src="js/detalleProyectoPestanas.js"></script>
     <script src="js/detalleProyectoComentarios.js"></script>
     <script src="js/detalleProyectoDocumentos.js"></script>
+    <script src="js/detalleProyectoValidacionCliente.js"></script>
     <script src="js/detalleProyecto.js"></script>
-    
+
     <script>
         // Inicializar el botón de editar con el ID correcto
         document.addEventListener('DOMContentLoaded', function() {

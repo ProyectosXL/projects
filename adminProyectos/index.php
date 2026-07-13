@@ -364,13 +364,13 @@ error_reporting(E_ALL);
                         <div class="col-md-6">
                             <ul class="list-group">
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Prueba y evaluación
+                                    Validación cliente
                                     <div class="circular-progress" style="--percentage: 60%; --color: #00bcd4;">
                                         <span>60%</span>
                                     </div>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    Modificaciones/correcciones
+                                    Correcciones y mejoras
                                     <div class="circular-progress" style="--percentage: 75%; --color: #00bcd4;">
                                         <span>75%</span>
                                     </div>

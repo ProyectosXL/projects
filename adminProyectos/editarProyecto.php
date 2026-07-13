@@ -255,7 +255,7 @@ try {
                                 <option value="Dirección" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Dirección') ? 'selected' : ''; ?>>Dirección</option>
                                 <option value="Ecommerce" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Ecommerce') ? 'selected' : ''; ?>>Ecommerce</option>
                                 <option value="Gerencia" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Gerencia') ? 'selected' : ''; ?>>Gerencia</option>
-                                <option value="Locales propios" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Locales propios') ? 'selected' : ''; ?>>Locales propios</option>
+                                <option value="Sucursales" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Sucursales') ? 'selected' : ''; ?>>Sucursales</option>
                                 <option value="Logística" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Logística') ? 'selected' : ''; ?>>Logística</option>
                                 <option value="Proyectos" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Proyectos/Ctrl. de stock') ? 'selected' : ''; ?>>Proyectos/Ctrl. de stock</option>
                                 <option value="Recursos humanos" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Recursos humanos') ? 'selected' : ''; ?>>Recursos humanos</option>
@@ -300,8 +300,8 @@ try {
                                 <option value="Diagnostico" <?php echo ($proyecto['EtapaProyecto'] ?? '') === 'Diagnostico' ? 'selected' : ''; ?>>Diagnóstico</option>
                                 <option value="Diseño" <?php echo ($proyecto['EtapaProyecto'] ?? '') === 'Diseño' ? 'selected' : ''; ?>>Diseño</option>
                                 <option value="Desarrollo" <?php echo ($proyecto['EtapaProyecto'] ?? '') === 'Desarrollo' ? 'selected' : ''; ?>>Desarrollo</option>
-                                <option value="Prueba y evaluación" <?php echo ($proyecto['EtapaProyecto'] ?? '') === 'Prueba y evaluación' ? 'selected' : ''; ?>>Prueba y evaluación</option>
-                                <option value="Modificaciones/correcciones" <?php echo ($proyecto['EtapaProyecto'] ?? '') === 'Modificaciones/correcciones' ? 'selected' : ''; ?>>Modificaciones/correcciones</option>
+                                <option value="Validación cliente" <?php echo ($proyecto['EtapaProyecto'] ?? '') === 'Validación cliente' ? 'selected' : ''; ?>>Validación cliente</option>
+                                <option value="Correcciones y mejoras" <?php echo ($proyecto['EtapaProyecto'] ?? '') === 'Correcciones y mejoras' ? 'selected' : ''; ?>>Correcciones y mejoras</option>
                                 <option value="Implementación" <?php echo ($proyecto['EtapaProyecto'] ?? '') === 'Implementación' ? 'selected' : ''; ?>>Implementación</option>
                                 <option value="Finalizado" <?php echo ($proyecto['EtapaProyecto'] ?? '') === 'Finalizado' ? 'selected' : ''; ?>>Finalizado</option>
                             </select>
