@@ -257,7 +257,7 @@ try {
                                 <option value="Gerencia" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Gerencia') ? 'selected' : ''; ?>>Gerencia</option>
                                 <option value="Sucursales" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Sucursales') ? 'selected' : ''; ?>>Sucursales</option>
                                 <option value="Logística" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Logística') ? 'selected' : ''; ?>>Logística</option>
-                                <option value="Proyectos" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Proyectos/Ctrl. de stock') ? 'selected' : ''; ?>>Proyectos/Ctrl. de stock</option>
+                                <option value="Proyectos" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Proyectos') ? 'selected' : ''; ?>>Proyectos</option>
                                 <option value="Recursos humanos" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Recursos humanos') ? 'selected' : ''; ?>>Recursos humanos</option>
                                 <option value="Sistemas" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Sistemas') ? 'selected' : ''; ?>>Sistemas</option>
                             </select>
@@ -423,7 +423,7 @@ try {
                                 <option value="Ramiro Orozco">Ramiro Orozco</option>
                                 <option value="Eduardo Berga">Eduardo Berga</option>
                                 <option value="Agustina Latorre">Agustina Latorre</option>
-                                <option value="Santos García">Santos García</option>
+                                <option value="Santos Garcia">Santos Garcia</option>
                                 <option value="Franco Pertus">Franco Pertus</option>
                             </select>
                             <div class="form-text text-muted">Seleccione un responsable si desea añadir un comentario</div>

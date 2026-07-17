@@ -53,12 +53,14 @@ try {
         exit;
     }
 
+    $nombreUsuario = $proyectoObj->obtenerNombreUsuario($_SESSION['username']);
+
     if ($accion === 'aprobar') {
         $proyectoObj->actualizarProyecto($idProyecto, [
             'EtapaProyecto' => 'Implementación',
             'FechaAprobacionCliente' => date('Y-m-d H:i:s'),
             'TipoAprobacionCliente' => 'EXPLICITA',
-            'UsuarioAprobacionCliente' => $_SESSION['username']
+            'UsuarioAprobacionCliente' => $nombreUsuario
         ]);
 
         responderExito('Proyecto aprobado correctamente');
@@ -69,7 +71,7 @@ try {
 
         $comentario = trim($_POST['comentario'] ?? '');
         if ($comentario !== '') {
-            $proyectoObj->agregarComentario($idProyecto, $_SESSION['username'], '[Rechazo] ' . $comentario);
+            $proyectoObj->agregarComentario($idProyecto, $nombreUsuario, '[Correcciones solicitadas] ' . $comentario);
         }
 
         responderExito('Proyecto enviado a "Correcciones y mejoras"');

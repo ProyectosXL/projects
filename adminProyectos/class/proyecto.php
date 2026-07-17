@@ -87,13 +87,42 @@ class Proyecto
             }
             
             return $solicitantes;
-            
+
         } catch (Exception $e) {
             error_log("Error en obtenerSolicitantes: " . $e->getMessage());
             throw $e;
         }
     }
-    
+
+    /**
+     * Resuelve el nombre de una persona a partir de su username de sesión,
+     * consultando SOF_USUARIOS (NOMBRE -> DESCRIPCION). Si no se encuentra o
+     * falla la consulta, devuelve el username tal cual para no romper al
+     * llamador.
+     */
+    public function obtenerNombreUsuario($username)
+    {
+        if (empty($username)) {
+            return $username;
+        }
+
+        try {
+            $sql = "SELECT DESCRIPCION FROM SOF_USUARIOS WHERE NOMBRE = ?";
+            $result = sqlsrv_query($this->cid_central, $sql, array($username));
+
+            if ($result === false) {
+                error_log("Error al obtener nombre de usuario: " . print_r(sqlsrv_errors(), true));
+                return $username;
+            }
+
+            $row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC);
+            return (!empty($row['DESCRIPCION'])) ? $row['DESCRIPCION'] : $username;
+        } catch (\Throwable $th) {
+            error_log("Error en obtenerNombreUsuario: " . $th->getMessage());
+            return $username;
+        }
+    }
+
     /**
      * Crea un nuevo proyecto en la base de datos
      * Versión con formato de fecha corregido
