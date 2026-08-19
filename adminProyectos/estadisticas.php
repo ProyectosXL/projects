@@ -116,6 +116,9 @@
                     <li class="nav-item">
                         <a class="nav-link active" href="estadisticas.php">Estadísticas</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="programas.php">Programas</a>
+                    </li>
                 </ul>
             </div>
         </div>

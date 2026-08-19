@@ -1,5 +1,7 @@
 <?php
 
+require_once __DIR__ . '/programa.php';
+
 class Proyecto
 {
     // Ventana de aceptación tácita para la etapa "Validación cliente", en días corridos
@@ -15,16 +17,16 @@ class Proyecto
         
         // Verificar si el archivo existe
         if (!file_exists($rutaConexion)) {
-            die("Error crítico: El archivo conexion.php no existe en la ruta: " . $rutaConexion);
+            throw new Exception("Error crítico: El archivo conexion.php no existe en la ruta: " . $rutaConexion);
         }
-        
+
         require_once $rutaConexion;
         $this->conexion = new Conexion();
         $this->cid_central = $this->conexion->conectar('central');
-        
+
         if (!$this->cid_central) {
             $error = print_r(sqlsrv_errors(), true);
-            die("Error de conexión a la base de datos: " . $error);
+            throw new Exception("Error de conexión a la base de datos: " . $error);
         }
         
         // Verificar y crear tablas/campos necesarios
@@ -603,10 +605,14 @@ class Proyecto
         }
     }
     
-    public function traerProyectos() 
-    {   
-        $sql = "SELECT * FROM HistorialProyectos";
-                
+    public function traerProyectos()
+    {
+        $sql = "SELECT hp.*,
+                       pr.Nombre AS NombrePrograma,
+                       pr.Color  AS ColorPrograma
+                FROM HistorialProyectos hp WITH (NOLOCK)
+                LEFT JOIN ProgramasProyectos pr WITH (NOLOCK) ON pr.ID = hp.IdPrograma";
+
         try {
             // Verificar que la conexión existe
             if (!$this->cid_central) {
@@ -653,10 +659,15 @@ class Proyecto
         }
     }
     
-    public function obtenerProyectoPorId($id) 
+    public function obtenerProyectoPorId($id)
     {
-        $sql = "SELECT * FROM HistorialProyectos WHERE ID = ?";
-        
+        $sql = "SELECT hp.*,
+                       pr.Nombre AS NombrePrograma,
+                       pr.Color  AS ColorPrograma
+                FROM HistorialProyectos hp WITH (NOLOCK)
+                LEFT JOIN ProgramasProyectos pr WITH (NOLOCK) ON pr.ID = hp.IdPrograma
+                WHERE hp.ID = ?";
+
         try {
             // Verificar que la conexión existe
             if (!$this->cid_central) {
@@ -1015,7 +1026,8 @@ class Proyecto
         'etapas' => [],
         'lideres' => [],
         'desarrolladores' => [],
-        'prioridades' => []
+        'prioridades' => [],
+        'programas' => []
     ];
     
     try {
@@ -1097,7 +1109,16 @@ class Proyecto
                 $filtros['prioridades'][] = $prioridad;
             }
         }
-        
+
+        // Obtener programas para el filtro (activos + inactivos con proyectos asignados)
+        try {
+            $programaObj = new Programa();
+            $filtros['programas'] = $programaObj->listarParaFiltro();
+        } catch (\Throwable $th) {
+            error_log("Error al obtener programas para filtro: " . $th->getMessage());
+            $filtros['programas'] = [];
+        }
+
         return $filtros;
         
     } catch (\Throwable $th) {

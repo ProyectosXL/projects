@@ -16,14 +16,37 @@ $idProyecto = (int)$_GET['id'];
 // Intentar cargar los datos del proyecto
 try {
     require_once 'class/proyecto.php';
+    require_once 'class/programa.php';
     $proyectoObj = new Proyecto();
-    
+    $programaObj = new Programa();
+
     // Esta función debe existir en la clase Proyecto
     $proyecto = $proyectoObj->obtenerProyectoPorId($idProyecto);
-    
+
     if (!$proyecto) {
         header('Location: index.php?error=' . urlencode('Proyecto no encontrado'));
         exit;
+    }
+
+    // Programas activos para el select, más el programa actual del proyecto
+    // si quedó desactivado (debe seguir viéndose y quedar seleccionado, o se
+    // desasignaría en silencio al guardar)
+    $programasActivos = $programaObj->listar(true);
+    $idProgramaActual = $proyecto['IdPrograma'] ?? null;
+    $programaActualInactivo = null;
+
+    if (!empty($idProgramaActual)) {
+        $estaEntreActivos = false;
+        foreach ($programasActivos as $programaActivo) {
+            if ((int)$programaActivo['ID'] === (int)$idProgramaActual) {
+                $estaEntreActivos = true;
+                break;
+            }
+        }
+
+        if (!$estaEntreActivos) {
+            $programaActualInactivo = $programaObj->obtenerPorId($idProgramaActual);
+        }
     }
     
     // Procesar el formulario si se envió
@@ -57,6 +80,7 @@ try {
             'Solicitante' => $_POST['Solicitante'] ?? null,
             'Pais' => $_POST['Pais'] ?? null,
             'Sector' => $_POST['Sector'] ?? null,
+            'IdPrograma' => ($_POST['IdPrograma'] ?? '') === '' ? null : (int)$_POST['IdPrograma'],
             'Funcionalidad' => $_POST['Funcionalidad'] ?? null,
             
             // Campo URL del Requerimiento
@@ -155,6 +179,9 @@ try {
                     <li class="nav-item">
                         <a class="nav-link active" href="#">Editar Proyecto</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="programas.php">Programas</a>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -242,7 +269,7 @@ try {
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-3">
                         <div class="mb-3">
                             <label for="Sector" class="form-label">Sector</label>
                             <select class="form-select" id="Sector" name="Sector">
@@ -263,10 +290,28 @@ try {
                             </select>
                         </div>
                     </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label for="IdPrograma" class="form-label">Programa</label>
+                            <select class="form-select" id="IdPrograma" name="IdPrograma">
+                                <option value="" <?php echo empty($idProgramaActual) ? 'selected' : ''; ?>>Sin programa</option>
+                                <?php foreach ($programasActivos as $programa): ?>
+                                    <option value="<?php echo (int)$programa['ID']; ?>" <?php echo ((int)$idProgramaActual === (int)$programa['ID']) ? 'selected' : ''; ?>>
+                                        <?php echo htmlspecialchars($programa['Nombre']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                                <?php if ($programaActualInactivo): ?>
+                                    <option value="<?php echo (int)$programaActualInactivo['ID']; ?>" selected>
+                                        <?php echo htmlspecialchars($programaActualInactivo['Nombre']); ?> (inactivo)
+                                    </option>
+                                <?php endif; ?>
+                            </select>
+                        </div>
+                    </div>
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label for="Funcionalidad" class="form-label">Funcionalidad</label>
-                            <textarea class="form-control" id="Funcionalidad" name="Funcionalidad" rows="4" 
+                            <textarea class="form-control" id="Funcionalidad" name="Funcionalidad" rows="4"
                                       placeholder="Ingrese una breve descripción"><?php echo htmlspecialchars($proyecto['Funcionalidad'] ?? ''); ?></textarea>
                         </div>
                     </div>

@@ -61,7 +61,20 @@ const DetalleProyectoPestanas = {
         // Actualizar información general
         this.actualizarElemento('proyectoId', this.proyectoData.ID);
         this.actualizarElemento('proyectoTitulo', this.proyectoData.Desarrollo);
-        
+
+        // Actualizar badge de programa
+        const programaElement = document.getElementById('proyectoPrograma');
+        if (programaElement) {
+            if (this.proyectoData.NombrePrograma) {
+                programaElement.textContent = this.proyectoData.NombrePrograma;
+                programaElement.style.backgroundColor = this.proyectoData.ColorPrograma || '#6c757d';
+                programaElement.style.color = '#fff';
+                programaElement.classList.remove('d-none');
+            } else {
+                programaElement.classList.add('d-none');
+            }
+        }
+
         // Actualizar estado
         const estadoElement = document.getElementById('proyectoEstado');
         if (estadoElement) {
@@ -116,9 +129,58 @@ const DetalleProyectoPestanas = {
             DetalleProyectoValidacionCliente.actualizar(this.proyectoData);
         }
 
+        // Cargar otros proyectos del mismo programa (si tiene uno asignado)
+        this.cargarProyectosHermanos();
+
         console.log('Interfaz actualizada correctamente');
     },
-    
+
+    // Carga y muestra los demás proyectos del mismo programa. No se muestra
+    // la card si el proyecto no tiene programa o si es el único del programa.
+    cargarProyectosHermanos: function() {
+        const fila = document.getElementById('filaProyectosHermanos');
+        const lista = document.getElementById('listaProyectosHermanos');
+        if (!fila || !lista) return;
+
+        if (!this.proyectoData.IdPrograma) {
+            fila.style.display = 'none';
+            return;
+        }
+
+        fetch(`api/detalleProyecto.php?id=${this.proyectoId}&accion=hermanos`)
+            .then(response => response.json())
+            .then(data => {
+                if (!data.exito || !Array.isArray(data.hermanos) || data.hermanos.length === 0) {
+                    fila.style.display = 'none';
+                    return;
+                }
+
+                lista.innerHTML = '';
+                data.hermanos.forEach(proyecto => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+                    const link = document.createElement('a');
+                    link.href = `detalleProyecto.php?id=${proyecto.ID}`;
+                    link.textContent = proyecto.Desarrollo || '';
+
+                    const badge = document.createElement('span');
+                    badge.className = `badge estado-${(proyecto.Estado || 'pendiente').toLowerCase()}`;
+                    badge.textContent = proyecto.Estado || 'N/A';
+
+                    li.appendChild(link);
+                    li.appendChild(badge);
+                    lista.appendChild(li);
+                });
+
+                fila.style.display = '';
+            })
+            .catch(error => {
+                console.error('Error al cargar proyectos del programa:', error);
+                fila.style.display = 'none';
+            });
+    },
+
     // Función auxiliar para actualizar elementos
     actualizarElemento: function(id, contenido, esHTML = false) {
         const elemento = document.getElementById(id);

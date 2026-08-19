@@ -40,6 +40,9 @@ require_once 'class/proyecto.php';
                     <li class="nav-item">
                         <a class="nav-link active" href="#">Detalle de Proyecto</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="programas.php">Programas</a>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -63,6 +66,7 @@ require_once 'class/proyecto.php';
             <div class="project-title">
                 <span class="project-id" id="proyectoId"></span>
                 <h1 id="proyectoTitulo"></h1>
+                <span class="badge d-none" id="proyectoPrograma"></span>
             </div>
             
             <div class="project-info row">
@@ -156,6 +160,19 @@ require_once 'class/proyecto.php';
                         <div class="card">
                             <div class="card-body">
                                 <p id="proyectoDescripcion">Cargando...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-4" id="filaProyectosHermanos" style="display: none;">
+                    <div class="col-12">
+                        <h5 class="mb-3">Otros proyectos del programa</h5>
+                        <div class="card">
+                            <div class="card-body">
+                                <ul class="list-group list-group-flush" id="listaProyectosHermanos">
+                                    <!-- Se cargará dinámicamente -->
+                                </ul>
                             </div>
                         </div>
                     </div>

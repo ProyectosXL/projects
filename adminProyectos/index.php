@@ -31,8 +31,8 @@ error_reporting(E_ALL);
     <style>
         /* Estilos para filtros múltiples */
         .select-multiple {
-            min-height: 80px;
-            max-height: 120px;
+            min-height: 60px;
+            max-height: 100px;
             overflow-y: auto;
             padding: 0.375rem 0.5rem;
         }
@@ -55,18 +55,19 @@ error_reporting(E_ALL);
             font-weight: 500;
         }
 
-        .filtros-seleccionados {
-            max-width: 60%;
-            overflow: hidden;
+        /* Resumen de filtros activos en el header colapsable */
+        #filtrosActivosTexto {
+            flex: 1 1 auto;
+            min-width: 0;
+            max-width: 100%;
         }
 
-        #filtrosActivosTexto {
-            font-style: italic;
-            display: inline-block;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 100%;
+        /* Chevron del panel de filtros colapsable */
+        .chevron-filtros {
+            transition: transform 0.2s ease;
+        }
+        .chevron-filtros.abierto {
+            transform: rotate(180deg);
         }
 
         /* Indicador visual para filtros activos */
@@ -118,16 +119,11 @@ error_reporting(E_ALL);
         /* Responsive */
         @media (max-width: 768px) {
             .select-multiple {
-                min-height: 60px;
-                max-height: 100px;
+                min-height: 55px;
+                max-height: 90px;
             }
 
-            .filtros-seleccionados {
-                max-width: 100%;
-                margin-bottom: 10px;
-            }
-
-            .d-flex.justify-content-between {
+            .page-header-row {
                 flex-direction: column;
                 align-items: stretch !important;
             }
@@ -152,13 +148,16 @@ error_reporting(E_ALL);
                     <li class="nav-item">
                         <a class="nav-link" href="estadisticas.php">Estadísticas</a>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="programas.php">Programas</a>
+                    </li>
                 </ul>
             </div>
         </div>
     </nav>
 
     <div class="container-fluid mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-4 page-header-row">
             <h1>Seguimiento de Proyectos</h1>
             <div class="d-flex gap-2">
                 <button class="btn btn-info" data-bs-toggle="modal" data-bs-target="#leyendaModal">
@@ -170,71 +169,82 @@ error_reporting(E_ALL);
         <div id="alertContainer"></div>
         
         <!-- Filtros -->
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">Filtros (Selección Múltiple)</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-2 mb-3">
-                        <label for="filtroSector" class="form-label">Sector</label>
-                        <select class="form-select select-multiple" id="filtroSector" multiple>
-                            <!-- Opciones se cargarán dinámicamente -->
-                        </select>
-                        <div class="form-text">Ctrl+Click para seleccionar múltiples</div>
+        <div class="card mb-3">
+            <div class="card-header bg-primary text-white py-2"
+                 id="headerFiltros"
+                 role="button"
+                 data-bs-toggle="collapse"
+                 data-bs-target="#panelFiltros"
+                 aria-expanded="false"
+                 aria-controls="panelFiltros"
+                 style="cursor: pointer">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center gap-2 flex-grow-1 me-2" style="min-width: 0;">
+                        <i class="fas fa-filter flex-shrink-0"></i>
+                        <h6 class="mb-0 flex-shrink-0">Filtros</h6>
+                        <span class="badge bg-light text-primary d-none flex-shrink-0" id="badgeFiltrosActivos">0</span>
+                        <span id="filtrosActivosTexto" class="text-white-50 text-truncate">Sin filtros aplicados</span>
                     </div>
-                    <div class="col-md-2 mb-3">
-                        <label for="filtroEstado" class="form-label">Estado</label>
-                        <select class="form-select select-multiple" id="filtroEstado" multiple>
-                            <!-- Opciones se cargarán dinámicamente -->
-                        </select>
-                        <div class="form-text">Ctrl+Click para seleccionar múltiples</div>
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <label for="filtroEtapa" class="form-label">Etapa</label>
-                        <select class="form-select select-multiple" id="filtroEtapa" multiple>
-                            <!-- Opciones se cargarán dinámicamente -->
-                        </select>
-                        <div class="form-text">Ctrl+Click para seleccionar múltiples</div>
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <label for="filtroLider" class="form-label">Líder de Proyecto</label>
-                        <select class="form-select select-multiple" id="filtroLider" multiple>
-                            <!-- Opciones se cargarán dinámicamente -->
-                        </select>
-                        <div class="form-text">Ctrl+Click para seleccionar múltiples</div>
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <label for="filtroDesarrollador" class="form-label">Desarrollador</label>
-                        <select class="form-select select-multiple" id="filtroDesarrollador" multiple>
-                            <!-- Opciones se cargarán dinámicamente -->
-                        </select>
-                        <div class="form-text">Ctrl+Click para seleccionar múltiples</div>
-                    </div>
-                    <div class="col-md-2 mb-3">
-                        <label for="filtroPrioridad" class="form-label">Prioridad</label>
-                        <select class="form-select select-multiple" id="filtroPrioridad" multiple>
-                            <!-- Opciones se cargarán dinámicamente -->
-                        </select>
-                        <div class="form-text">Ctrl+Click para seleccionar múltiples</div>
-                    </div>
+                    <i class="fas fa-chevron-down chevron-filtros flex-shrink-0" id="chevronFiltros"></i>
                 </div>
-                <div class="row">
-                    <div class="col-12">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="filtros-seleccionados">
-                                <small class="text-muted">
-                                    <span id="filtrosActivosTexto">Sin filtros aplicados</span>
-                                </small>
-                            </div>
-                            <div>
-                                <button id="btnResetFiltros" class="btn btn-secondary me-2">
-                                    <i class="fas fa-undo me-1"></i> Restablecer
-                                </button>
-                                <button id="btnAplicarFiltros" class="btn btn-primary">
-                                    <i class="fas fa-filter me-1"></i> Aplicar Filtros
-                                </button>
-                            </div>
+            </div>
+            <div class="collapse" id="panelFiltros">
+                <div class="card-body">
+                    <p class="text-muted small mb-3"><i class="fas fa-info-circle me-1"></i>Usá Ctrl+Click para seleccionar varias opciones dentro de un mismo filtro.</p>
+                    <div class="row">
+                        <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <label for="filtroSector" class="form-label">Sector</label>
+                            <select class="form-select select-multiple" id="filtroSector" multiple>
+                                <!-- Opciones se cargarán dinámicamente -->
+                            </select>
+                        </div>
+                        <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <label for="filtroEstado" class="form-label">Estado</label>
+                            <select class="form-select select-multiple" id="filtroEstado" multiple>
+                                <!-- Opciones se cargarán dinámicamente -->
+                            </select>
+                        </div>
+                        <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <label for="filtroEtapa" class="form-label">Etapa</label>
+                            <select class="form-select select-multiple" id="filtroEtapa" multiple>
+                                <!-- Opciones se cargarán dinámicamente -->
+                            </select>
+                        </div>
+                        <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <label for="filtroLider" class="form-label">Líder de Proyecto</label>
+                            <select class="form-select select-multiple" id="filtroLider" multiple>
+                                <!-- Opciones se cargarán dinámicamente -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <label for="filtroDesarrollador" class="form-label">Desarrollador</label>
+                            <select class="form-select select-multiple" id="filtroDesarrollador" multiple>
+                                <!-- Opciones se cargarán dinámicamente -->
+                            </select>
+                        </div>
+                        <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <label for="filtroPrioridad" class="form-label">Prioridad</label>
+                            <select class="form-select select-multiple" id="filtroPrioridad" multiple>
+                                <!-- Opciones se cargarán dinámicamente -->
+                            </select>
+                        </div>
+                        <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
+                            <label for="filtroPrograma" class="form-label">Programa</label>
+                            <select class="form-select select-multiple" id="filtroPrograma" multiple>
+                                <!-- Opciones se cargarán dinámicamente -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12 text-end">
+                            <button id="btnResetFiltros" class="btn btn-secondary me-2">
+                                <i class="fas fa-undo me-1"></i> Restablecer
+                            </button>
+                            <button id="btnAplicarFiltros" class="btn btn-primary">
+                                <i class="fas fa-filter me-1"></i> Aplicar Filtros
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -274,6 +284,7 @@ error_reporting(E_ALL);
                             <tr>
                                 <th>ID</th>
                                 <th>Desarrollo</th>
+                                <th>Programa</th>
                                 <th>Tipo Presentación</th>
                                 <th>Solicitante</th>
                                 <th>Sector</th>

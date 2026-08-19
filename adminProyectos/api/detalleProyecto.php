@@ -42,7 +42,11 @@ try {
         case 'documentos':
             obtenerDocumentosProyecto($proyectoObj, $idProyecto);
             break;
-            
+
+        case 'hermanos':
+            obtenerHermanosProyecto($proyectoObj, $idProyecto);
+            break;
+
         default:
             responderError('Acción no reconocida: ' . $accion);
             break;
@@ -117,6 +121,31 @@ function obtenerComentariosProyecto($proyectoObj, $idProyecto) {
     } catch (Exception $e) {
         error_log('Error en obtenerComentariosProyecto: ' . $e->getMessage());
         responderError('Error al obtener comentarios: ' . $e->getMessage());
+    }
+}
+
+/**
+ * Obtiene los demás proyectos que pertenecen al mismo programa que $idProyecto
+ */
+function obtenerHermanosProyecto($proyectoObj, $idProyecto) {
+    try {
+        $proyecto = $proyectoObj->obtenerProyectoPorId($idProyecto);
+
+        if (!$proyecto || empty($proyecto['IdPrograma'])) {
+            responderExito('El proyecto no tiene programa asignado', array('hermanos' => array()));
+            return;
+        }
+
+        $programaObj = new Programa();
+        $hermanos = $programaObj->obtenerProyectos($proyecto['IdPrograma'], $idProyecto);
+
+        responderExito('Proyectos del programa obtenidos correctamente', array(
+            'hermanos' => $hermanos,
+            'nombrePrograma' => $proyecto['NombrePrograma'] ?? null
+        ));
+    } catch (Exception $e) {
+        error_log('Error en obtenerHermanosProyecto: ' . $e->getMessage());
+        responderError('Error al obtener proyectos del programa: ' . $e->getMessage());
     }
 }
 
