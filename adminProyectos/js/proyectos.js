@@ -3,6 +3,13 @@
  * Funciones específicas para la gestión de proyectos
  */
 
+// Convierte 'YYYY-MM-DD' a Date en hora local. new Date('YYYY-MM-DD') lo
+// interpreta como medianoche UTC, que en Argentina (UTC-3) cae el día anterior
+function parseFechaLocal(valor) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(valor || '');
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(valor);
+}
+
 // Objeto para gestionar los proyectos
 const ProyectosManager = {
     // Referencia a la tabla DataTable
@@ -158,7 +165,7 @@ const ProyectosManager = {
                     render: function(data, type, row) {
                         if (type !== 'display') return data;
                         const fechaCreacion = row.FechaCreacion
-                            ? new Date(row.FechaCreacion).toLocaleDateString('es-ES')
+                            ? parseFechaLocal(row.FechaCreacion).toLocaleDateString('es-ES')
                             : 'Sin fecha';
                         return `<span data-bs-toggle="tooltip" data-bs-placement="right" title="Creado: ${fechaCreacion}">${data}</span>`;
                     }
@@ -183,7 +190,7 @@ const ProyectosManager = {
                             return '<span class="text-muted">Sin definir</span>';
                         }
 
-                        const fechaInicio = new Date(data);
+                        const fechaInicio = parseFechaLocal(data);
                         const fechaFormateada = fechaInicio.toLocaleDateString('es-ES');
 
                         const estado = row.Estado ? row.Estado.toLowerCase() : '';
@@ -225,7 +232,7 @@ const ProyectosManager = {
                             return '<span class="text-muted">Sin definir</span>';
                         }
 
-                        const fechaLimite = new Date(data);
+                        const fechaLimite = parseFechaLocal(data);
                         const fechaFormateada = fechaLimite.toLocaleDateString('es-ES');
 
                         // Solo mostrar semáforo para estados PROCESO y PENDIENTE
@@ -280,7 +287,7 @@ const ProyectosManager = {
                         if (!data || data === '1900-01-01' || data === '') {
                             return '<span class="text-muted">-</span>';
                         }
-                        const fecha = new Date(data);
+                        const fecha = parseFechaLocal(data);
                         return fecha.toLocaleDateString('es-ES');
                     }
                 },
@@ -693,7 +700,7 @@ const ProyectosManager = {
 
                 const parseDate = (val) => {
                     if (!val || val === '1900-01-01') return null;
-                    const d = new Date(val); d.setHours(0, 0, 0, 0);
+                    const d = parseFechaLocal(val); d.setHours(0, 0, 0, 0);
                     return isNaN(d) ? null : d;
                 };
                 const fechaLimite = parseDate(rowData.FechaLimite);

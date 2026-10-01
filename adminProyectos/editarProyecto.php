@@ -107,23 +107,30 @@ try {
         error_log('InicioReal: ' . ($datosActualizados['InicioReal'] ?? 'NULL'));
         error_log('FinalizacionReal: ' . ($datosActualizados['FinalizacionReal'] ?? 'NULL'));
         
-        // Procesar comentario si se proporcionó
-        $comentario = $_POST['comentario'] ?? '';
-        $autor = $_POST['autor'] ?? '';
-        
-        if (!empty($comentario) && !empty($autor)) {
-            // Esta función debe implementarse en la clase Proyecto
-            $proyectoObj->agregarComentario($idProyecto, $autor, $comentario);
-        }
-        
-        // Actualizar el proyecto
-        $resultado = $proyectoObj->actualizarProyecto($idProyecto, $datosActualizados);
-        
-        if ($resultado) {
-            header('Location: detalleProyecto.php?id=' . $idProyecto . '&mensaje=actualizado');
-            exit;
+        // Un proyecto finalizado debe tener fecha de Finalización Real
+        $finalizado = $datosActualizados['EtapaProyecto'] === 'Finalizado' || $datosActualizados['Estado'] === 'Terminado';
+
+        if ($finalizado && empty($datosActualizados['FinalizacionReal'])) {
+            $error = "Debe indicar la Finalización Real para finalizar el proyecto";
         } else {
-            $error = "No se pudo actualizar el proyecto";
+            // Procesar comentario si se proporcionó
+            $comentario = $_POST['comentario'] ?? '';
+            $autor = $_POST['autor'] ?? '';
+
+            if (!empty($comentario) && !empty($autor)) {
+                // Esta función debe implementarse en la clase Proyecto
+                $proyectoObj->agregarComentario($idProyecto, $autor, $comentario);
+            }
+
+            // Actualizar el proyecto
+            $resultado = $proyectoObj->actualizarProyecto($idProyecto, $datosActualizados);
+
+            if ($resultado) {
+                header('Location: detalleProyecto.php?id=' . $idProyecto . '&mensaje=actualizado');
+                exit;
+            } else {
+                $error = "No se pudo actualizar el proyecto";
+            }
         }
     }
     

@@ -136,7 +136,16 @@ $(document).ready(function() {
         const inicioReal = $('#InicioReal').val();
         const finalizacionReal = $('#FinalizacionReal').val();
         
-        if (inicioReal && finalizacionReal && finalizacionReal < inicioReal) {
+        const finalizado = $('#EtapaProyecto').val() === 'Finalizado' || $('#Estado').val() === 'Terminado';
+
+        if (finalizado && !finalizacionReal) {
+            $('#FinalizacionReal').addClass('is-invalid');
+            if ($('#FinalizacionReal-error-msg').length === 0) {
+                $('<div id="FinalizacionReal-error-msg" class="invalid-feedback">Debe indicar la Finalización Real para finalizar el proyecto</div>')
+                    .insertAfter('#FinalizacionReal');
+            }
+            esValido = false;
+        } else if (inicioReal && finalizacionReal && finalizacionReal < inicioReal) {
             $('#FinalizacionReal').addClass('is-invalid');
             if ($('#FinalizacionReal-error-msg').length === 0) {
                 $('<div id="FinalizacionReal-error-msg" class="invalid-feedback">La Finalización Real no puede ser anterior al Inicio Real</div>')
