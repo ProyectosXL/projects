@@ -189,24 +189,25 @@ function obtenerNumeroProyectoAproximado($proyectoObj, $nombreProyecto) {
 }
 
 /**
- * Obtiene la lista de sectores dinámicamente
+ * Obtiene la lista de sectores habilitados (lista fija, misma que en editarProyecto.php)
  */
 function obtenerSectores($proyectoObj) {
     try {
-        $conexion = $proyectoObj->getConexion();
-        
-        $sql = "SELECT DISTINCT(Sector) as Sector FROM HistorialProyectos WHERE Sector IS NOT NULL ORDER BY Sector";
-        $result = sqlsrv_query($conexion, $sql);
-        
-        if ($result === false) {
-            throw new Exception('Error al obtener sectores: ' . print_r(sqlsrv_errors(), true));
-        }
-        
-        $sectores = array();
-        while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
-            $sectores[] = $row['Sector'];
-        }
-        
+        $sectores = [
+            'Abastecimiento',
+            'Administración',
+            'Casa central',
+            'Comercial',
+            'Dirección',
+            'Ecommerce',
+            'Gerencia',
+            'Innovación',
+            'Sucursales',
+            'Logística',
+            'Recursos humanos',
+            'Sistemas'
+        ];
+
         if (count($sectores) > 0) {
             responderExito('Sectores obtenidos correctamente', [
                 'sectores' => $sectores

@@ -285,13 +285,12 @@ try {
                                 <option value="Administración" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Administración') ? 'selected' : ''; ?>>Administración</option>
                                 <option value="Casa central" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Casa central') ? 'selected' : ''; ?>>Casa central</option>
                                 <option value="Comercial" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Comercial') ? 'selected' : ''; ?>>Comercial</option>
-                                <option value="Control de stock" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Control de stock') ? 'selected' : ''; ?>>Control de stock</option>
                                 <option value="Dirección" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Dirección') ? 'selected' : ''; ?>>Dirección</option>
                                 <option value="Ecommerce" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Ecommerce') ? 'selected' : ''; ?>>Ecommerce</option>
                                 <option value="Gerencia" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Gerencia') ? 'selected' : ''; ?>>Gerencia</option>
+                                <option value="Innovación" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Innovación') ? 'selected' : ''; ?>>Innovación</option>
                                 <option value="Sucursales" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Sucursales') ? 'selected' : ''; ?>>Sucursales</option>
                                 <option value="Logística" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Logística') ? 'selected' : ''; ?>>Logística</option>
-                                <option value="Proyectos" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Proyectos') ? 'selected' : ''; ?>>Proyectos</option>
                                 <option value="Recursos humanos" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Recursos humanos') ? 'selected' : ''; ?>>Recursos humanos</option>
                                 <option value="Sistemas" <?php echo (isset($proyecto['Sector']) && $proyecto['Sector'] === 'Sistemas') ? 'selected' : ''; ?>>Sistemas</option>
                             </select>
