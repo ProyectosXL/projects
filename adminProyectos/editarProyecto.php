@@ -5,6 +5,9 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+// Sesión necesaria para mostrar u ocultar la pestaña Parámetros según el permiso del usuario
+session_start();
+
 // Verificar que se proporcionó un ID
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: index.php?error=' . urlencode('ID de proyecto no válido'));
@@ -189,6 +192,7 @@ try {
                     <li class="nav-item">
                         <a class="nav-link" href="programas.php">Programas</a>
                     </li>
+<?php include __DIR__ . '/includes/navParametros.php'; ?>
                 </ul>
             </div>
         </div>

@@ -1,0 +1,18 @@
+/* Parámetros › Personas */
+
+/* Switches de la tabla un poco más grandes para tocarlos cómodo */
+#tablaPersonas .form-switch .form-check-input {
+    width: 2.25em;
+    height: 1.2em;
+    cursor: pointer;
+    float: none;
+    margin-left: 0;
+}
+
+#tablaPersonas .form-switch .form-check-input:disabled {
+    cursor: wait;
+}
+
+#tablaPersonas td {
+    vertical-align: middle;
+}
