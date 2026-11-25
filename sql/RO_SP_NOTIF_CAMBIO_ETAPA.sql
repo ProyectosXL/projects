@@ -9,10 +9,14 @@
       'CAMBIO_ETAPA_PROYECTO' (se administra desde el panel de
       adminNotificaciones, igual que AVISOS_ADMIN_PROYECTOS). A diferencia de
       RO_SP_NOTIF_ADMIN_PROYECTOS, este SP NO resuelve nombre -> mail contra
-      RO_USUARIOS_CARGA_PROYECTOS para Solicitante/LiderProyecto: esos mails ya
-      vienen resueltos desde PHP (Proyecto::obtenerSolicitantes(), en
-      adminProyectos/class/proyecto.php), que es quien tiene la lista de
-      nombres/mails y decide a quién notificar.
+      dbo.PersonasProyectos para Solicitante/LiderProyecto: esos mails ya
+      vienen resueltos desde PHP (Proyecto::resolverMailPorNombre(), en
+      adminProyectos/class/proyecto.php, que busca en PersonasProyectos sin
+      importar si la persona está activa ni qué roles tiene) y es PHP quien
+      decide a quién notificar.
+
+      Nota: el cambio a PersonasProyectos solo tocó este encabezado; el código
+      del SP no cambió, así que no hace falta volver a ejecutar este script.
 
     Quién lo llama: Proyecto::actualizarProyecto() (adminProyectos/class/proyecto.php),
     justo después de actualizar EtapaProyecto en HistorialProyectos, cuando la
