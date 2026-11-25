@@ -873,24 +873,21 @@ class Proyecto
     }
 
     /**
-     * Busca el mail de una persona por su nombre en RO_USUARIOS_CARGA_PROYECTOS,
-     * reusando obtenerSolicitantes() (Solicitante/LiderProyecto son texto libre).
+     * Busca el mail de una persona por su nombre en PersonasProyectos
+     * (Solicitante/LiderProyecto se guardan como texto en HistorialProyectos).
+     * No importa si la persona está activa ni qué roles tiene: un proyecto
+     * viejo puede tener como líder a alguien que hoy está desactivado y el
+     * aviso le tiene que llegar igual. La comparación la hace SQL Server sin
+     * distinguir mayúsculas, acentos ni espacios al inicio/fin (mismo criterio
+     * que RO_SP_NOTIF_ADMIN_PROYECTOS). null si no está o no tiene mail.
      */
     private function resolverMailPorNombre($nombre)
     {
-        if (empty($nombre)) {
+        if (empty($nombre) || trim($nombre) === '') {
             return null;
         }
 
-        $nombreNormalizado = mb_strtolower(trim($nombre));
-
-        foreach ($this->obtenerSolicitantes() as $persona) {
-            if (mb_strtolower(trim($persona['NOMBRE_APELLIDO'])) === $nombreNormalizado) {
-                return $persona['MAIL'];
-            }
-        }
-
-        return null;
+        return $this->persona()->resolverMail($nombre);
     }
 
     public function agregarComentario($idProyecto, $autor, $comentario)
