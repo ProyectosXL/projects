@@ -167,7 +167,7 @@
                             </h6>
                             <ul class="list-unstyled ms-3 mb-4">
                                 <li class="mb-2">
-                                    <strong>Solicitante:</strong> Persona que solicita el proyecto (se carga desde el sistema de empleados)
+                                    <strong>Solicitante:</strong> Persona que solicita el proyecto. La lista de solicitantes se administra en Gestión de Proyectos › Parámetros; si no encontrás a alguien, pedile a quien administra ese listado que lo agregue
                                 </li>
                                 <li class="mb-2">
                                     <strong>Prioridad:</strong> 
