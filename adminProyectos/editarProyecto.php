@@ -5,6 +5,9 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
+// Sesión necesaria para mostrar u ocultar la pestaña Parámetros según el permiso del usuario
+session_start();
+
 // Verificar que se proporcionó un ID
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: index.php?error=' . urlencode('ID de proyecto no válido'));
@@ -99,7 +102,43 @@ try {
             'Desarrollador' => $_POST['Desarrollador'] ?? null,
             'Prioridad' => $_POST['Prioridad'] ?? null
         ];
-        
+
+        /**
+         * Combos de persona (Solicitante, Líder, Desarrollador), fuente
+         * Parámetros › Personas. Devuelve:
+         *   - ''   si el campo no vino en el POST, o vino vacío sin poder vaciarse:
+         *          actualizarProyecto() ignora los '' y el valor queda como estaba.
+         *   - null si vino vacío ("Sin asignar"), el campo admite vaciarse y está
+         *          la marca explícita de este formulario (marcaSinAsignar=1): se
+         *          guarda NULL. Solo para LiderProyecto y Desarrollador.
+         *   - el nombre validado: persona activa con ese rol, o el valor que el
+         *          proyecto ya tenía (opción "(fuera de lista)").
+         * Lanza Exception si el valor no es válido.
+         */
+        function procesarCampoPersona($proyectoObj, $campo, $rol, $valorActual, $permiteVaciar) {
+            if (!array_key_exists($campo, $_POST)) {
+                return '';
+            }
+
+            $valor = trim((string)$_POST[$campo]);
+
+            if ($valor === '') {
+                $marcaSinAsignar = ($_POST['marcaSinAsignar'] ?? '') === '1';
+                return ($permiteVaciar && $marcaSinAsignar) ? null : '';
+            }
+
+            return $proyectoObj->validarPersonaParaRol($rol, $valor, $valorActual);
+        }
+
+        $errorPersonas = null;
+        try {
+            $datosActualizados['Solicitante'] = procesarCampoPersona($proyectoObj, 'Solicitante', 'solicitante', $proyecto['Solicitante'] ?? null, false);
+            $datosActualizados['LiderProyecto'] = procesarCampoPersona($proyectoObj, 'LiderProyecto', 'lider', $proyecto['LiderProyecto'] ?? null, true);
+            $datosActualizados['Desarrollador'] = procesarCampoPersona($proyectoObj, 'Desarrollador', 'desarrollador', $proyecto['Desarrollador'] ?? null, true);
+        } catch (Exception $e) {
+            $errorPersonas = $e->getMessage();
+        }
+
         // Log para debugging
         error_log('Datos de fechas procesados:');
         error_log('InicioProgramado: ' . ($datosActualizados['InicioProgramado'] ?? 'NULL'));
@@ -110,7 +149,9 @@ try {
         // Un proyecto finalizado debe tener fecha de Finalización Real
         $finalizado = $datosActualizados['EtapaProyecto'] === 'Finalizado' || $datosActualizados['Estado'] === 'Terminado';
 
-        if ($finalizado && empty($datosActualizados['FinalizacionReal'])) {
+        if ($errorPersonas !== null) {
+            $error = $errorPersonas;
+        } elseif ($finalizado && empty($datosActualizados['FinalizacionReal'])) {
             $error = "Debe indicar la Finalización Real para finalizar el proyecto";
         } else {
             // Procesar comentario si se proporcionó
@@ -137,9 +178,60 @@ try {
     // Obtener historial de comentarios
     $comentarios = $proyectoObj->obtenerComentarios($idProyecto);
     
-    // Obtener lista de solicitantes para el select
-    $solicitantes = $proyectoObj->obtenerSolicitantes();
-    
+    /**
+     * Arma un combo de persona: personas activas con el rol + el valor actual
+     * del proyecto. Si el valor actual no está en la lista activa de ese rol
+     * (persona desactivada, switch apagado o texto viejo que no coincide), se
+     * agrega como opción "(fuera de lista)" y queda seleccionado, igual que el
+     * programa inactivo: así no se pierde en silencio al guardar.
+     */
+    function prepararComboPersona($proyectoObj, $rol, $valorActual) {
+        $valorActual = trim((string)$valorActual);
+        $combo = [
+            'personas' => $proyectoObj->obtenerPersonasPorRol($rol),
+            'seleccionado' => '',
+            'fueraDeLista' => null
+        ];
+
+        if ($valorActual !== '') {
+            // Coincidencia sin distinguir mayúsculas ni acentos: se selecciona
+            // el nombre tal como está en el listado
+            $nombreListado = $proyectoObj->nombrePersonaActivaConRol($rol, $valorActual);
+
+            if ($nombreListado !== null) {
+                $combo['seleccionado'] = $nombreListado;
+            } else {
+                $combo['fueraDeLista'] = $valorActual;
+                $combo['seleccionado'] = $valorActual;
+            }
+        }
+
+        return $combo;
+    }
+
+    /**
+     * Imprime las <option> de un combo de persona (sin la opción vacía)
+     */
+    function imprimirOpcionesPersona($combo) {
+        foreach ($combo['personas'] as $persona) {
+            $valor = $persona['NOMBRE_FORMATEADO'];
+            $selected = ($valor === $combo['seleccionado']) ? ' selected' : '';
+            $titulo = !empty($persona['MAIL']) ? ' title="' . htmlspecialchars($persona['MAIL']) . '"' : '';
+            echo '<option value="' . htmlspecialchars($valor) . '"' . $selected . $titulo . '>'
+                . htmlspecialchars($persona['APELLIDO_Y_NOMBRE']) . "</option>\n";
+        }
+
+        if ($combo['fueraDeLista'] !== null) {
+            echo '<option value="' . htmlspecialchars($combo['fueraDeLista']) . '" selected>'
+                . htmlspecialchars($combo['fueraDeLista']) . " (fuera de lista)</option>\n";
+        }
+    }
+
+    // Combos de persona (fuente: Parámetros › Personas)
+    $comboSolicitante = prepararComboPersona($proyectoObj, 'solicitante', $proyecto['Solicitante'] ?? '');
+    $comboLider = prepararComboPersona($proyectoObj, 'lider', $proyecto['LiderProyecto'] ?? '');
+    $comboDesarrollador = prepararComboPersona($proyectoObj, 'desarrollador', $proyecto['Desarrollador'] ?? '');
+
 } catch (Exception $e) {
     header('Location: index.php?error=' . urlencode('Error al cargar el proyecto: ' . $e->getMessage()));
     exit;
@@ -189,6 +281,7 @@ try {
                     <li class="nav-item">
                         <a class="nav-link" href="programas.php">Programas</a>
                     </li>
+<?php include __DIR__ . '/includes/navParametros.php'; ?>
                 </ul>
             </div>
         </div>
@@ -205,11 +298,14 @@ try {
         <?php if (isset($error)): ?>
             <div class="alert alert-danger">
                 <i class="fas fa-exclamation-circle me-2"></i>
-                <?php echo $error; ?>
+                <?php echo htmlspecialchars($error); ?>
             </div>
         <?php endif; ?>
         
         <form method="post" action="">
+            <!-- Marca explícita de este formulario: habilita que "Sin asignar" en
+                 Líder/Desarrollador guarde NULL (ver procesarCampoPersona()) -->
+            <input type="hidden" name="marcaSinAsignar" value="1">
             <!-- Información General (Ahora Editable) -->
             <div class="form-section">
                 <h3 class="section-title">Información General</h3>
@@ -246,20 +342,8 @@ try {
                         <div class="mb-3">
                             <label for="Solicitante" class="form-label">Solicitante</label>
                             <select class="form-select" id="Solicitante" name="Solicitante">
-                                <option value="">Seleccione solicitante</option>
-                                <?php if (isset($solicitantes) && is_array($solicitantes)): ?>
-                                    <?php foreach ($solicitantes as $solicitante): ?>
-                                        <?php 
-                                        $valorSolicitante = $solicitante['NOMBRE_FORMATEADO'];
-                                        $textoSolicitante = $solicitante['APELLIDO_Y_NOMBRE'];
-                                        $selected = (isset($proyecto['Solicitante']) && $proyecto['Solicitante'] === $valorSolicitante) ? 'selected' : '';
-                                        ?>
-                                        <option value="<?php echo htmlspecialchars($valorSolicitante); ?>" <?php echo $selected; ?> 
-                                                title="<?php echo htmlspecialchars($solicitante['MAIL']); ?>">
-                                            <?php echo htmlspecialchars($textoSolicitante); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
+                                <option value="" <?php echo $comboSolicitante['seleccionado'] === '' ? 'selected' : ''; ?>>Seleccione solicitante</option>
+                                <?php imprimirOpcionesPersona($comboSolicitante); ?>
                             </select>
                         </div>
                     </div>
@@ -376,15 +460,19 @@ try {
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label for="LiderProyecto" class="form-label">Líder de Proyecto</label>
-                            <input type="text" class="form-control" id="LiderProyecto" name="LiderProyecto" 
-                                   value="<?php echo htmlspecialchars($proyecto['LiderProyecto'] ?? ''); ?>">
+                            <select class="form-select" id="LiderProyecto" name="LiderProyecto">
+                                <option value="" <?php echo $comboLider['seleccionado'] === '' ? 'selected' : ''; ?>>Sin asignar</option>
+                                <?php imprimirOpcionesPersona($comboLider); ?>
+                            </select>
                         </div>
                     </div>
                     <div class="col-md-6">
                         <div class="mb-3">
                             <label for="Desarrollador" class="form-label">Desarrollador</label>
-                            <input type="text" class="form-control" id="Desarrollador" name="Desarrollador" 
-                                   value="<?php echo htmlspecialchars($proyecto['Desarrollador'] ?? ''); ?>">
+                            <select class="form-select" id="Desarrollador" name="Desarrollador">
+                                <option value="" <?php echo $comboDesarrollador['seleccionado'] === '' ? 'selected' : ''; ?>>Sin asignar</option>
+                                <?php imprimirOpcionesPersona($comboDesarrollador); ?>
+                            </select>
                         </div>
                     </div>
                 </div>

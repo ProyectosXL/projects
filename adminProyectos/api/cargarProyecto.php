@@ -52,15 +52,13 @@ try {
  */
 function obtenerSolicitantes($proyectoObj) {
     try {
+        // Personas activas con Solicitante prendido (Parámetros › Personas).
+        // Una lista vacía es una respuesta válida, no un error.
         $solicitantes = $proyectoObj->obtenerSolicitantes();
-        
-        if ($solicitantes && is_array($solicitantes)) {
-            responderExito('Solicitantes obtenidos correctamente', [
-                'solicitantes' => $solicitantes
-            ]);
-        } else {
-            responderError('No se pudieron obtener los solicitantes');
-        }
+
+        responderExito('Solicitantes obtenidos correctamente', [
+            'solicitantes' => is_array($solicitantes) ? $solicitantes : []
+        ]);
         
     } catch (Exception $e) {
         error_log('Error en obtenerSolicitantes: ' . $e->getMessage());
@@ -110,6 +108,15 @@ function guardarProyecto($proyectoObj) {
             $datosProyecto[$campo] = limpiarTextoUTF8($_POST[$campo]);
         }
         
+        // El solicitante tiene que ser una persona activa con Solicitante prendido
+        // (proyecto nuevo: no hay valor anterior que respetar)
+        try {
+            $datosProyecto['solicitante'] = $proyectoObj->validarPersonaParaRol('solicitante', $datosProyecto['solicitante']);
+        } catch (Exception $e) {
+            responderError($e->getMessage());
+            return;
+        }
+
         // Log para debugging
         error_log('Datos procesados con UTF-8: ' . print_r($datosProyecto, true));
         

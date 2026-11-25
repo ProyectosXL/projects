@@ -43,6 +43,7 @@ require_once 'class/proyecto.php';
                     <li class="nav-item">
                         <a class="nav-link" href="programas.php">Programas</a>
                     </li>
+<?php include __DIR__ . '/includes/navParametros.php'; ?>
                 </ul>
             </div>
         </div>

@@ -51,6 +51,7 @@ session_start();
                     <li class="nav-item">
                         <a class="nav-link active" href="programas.php">Programas</a>
                     </li>
+<?php include __DIR__ . '/includes/navParametros.php'; ?>
                 </ul>
             </div>
         </div>

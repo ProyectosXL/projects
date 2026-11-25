@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/programa.php';
+require_once __DIR__ . '/persona.php';
 
 class Proyecto
 {
@@ -62,38 +63,90 @@ class Proyecto
     }
     
     /**
-     * Obtiene la lista de solicitantes desde la base de datos
+     * Instancia de Persona (listado PersonasProyectos), creada recién cuando se necesita
+     */
+    private $personaObj = null;
+
+    private function persona()
+    {
+        if ($this->personaObj === null) {
+            // Reutiliza la conexión de Proyecto (ver Persona::__construct)
+            $this->personaObj = new Persona($this->cid_central);
+        }
+
+        return $this->personaObj;
+    }
+
+    /**
+     * Personas activas con el rol indicado ('solicitante', 'lider' o
+     * 'desarrollador'), en orden alfabético, desde PersonasProyectos
+     * (se administra en Parámetros › Personas).
+     *
+     * Se mantienen las claves históricas (NOMBRE_APELLIDO, MAIL,
+     * APELLIDO_Y_NOMBRE, NOMBRE_FORMATEADO) para no romper a quien las usa.
+     */
+    public function obtenerPersonasPorRol($rol)
+    {
+        try {
+            $personas = [];
+
+            foreach ($this->persona()->listarPorRol($rol) as $persona) {
+                $personas[] = [
+                    'NOMBRE_APELLIDO' => $persona['Nombre'],
+                    'MAIL' => $persona['Mail'],
+                    'APELLIDO_Y_NOMBRE' => $persona['Nombre'], // Texto a mostrar
+                    'NOMBRE_FORMATEADO' => $persona['Nombre']  // Valor que se guarda en HistorialProyectos
+                ];
+            }
+
+            return $personas;
+        } catch (\Throwable $th) {
+            error_log("Error en obtenerPersonasPorRol($rol): " . $th->getMessage());
+            throw $th;
+        }
+    }
+
+    /**
+     * Solicitantes: personas activas con EsSolicitante = 1
      */
     public function obtenerSolicitantes()
     {
-        try {
-            // Query actualizado para obtener solicitantes desde RO_USUARIOS_CARGA_PROYECTOS
-            $sql = "SELECT NOMBRE_APELLIDO, MAIL FROM RO_USUARIOS_CARGA_PROYECTOS ORDER BY NOMBRE_APELLIDO";
-            
-            // Ejecutar consulta
-            $result = sqlsrv_query($this->cid_central, $sql);
-            
-            if ($result === false) {
-                throw new Exception('Error al ejecutar la consulta: ' . print_r(sqlsrv_errors(), true));
-            }
-            
-            // Recopilar resultados
-            $solicitantes = array();
-            while ($row = sqlsrv_fetch_array($result, SQLSRV_FETCH_ASSOC)) {
-                $solicitantes[] = array(
-                    'NOMBRE_APELLIDO' => $row['NOMBRE_APELLIDO'],
-                    'MAIL' => $row['MAIL'],
-                    'APELLIDO_Y_NOMBRE' => $row['NOMBRE_APELLIDO'], // Para mantener compatibilidad
-                    'NOMBRE_FORMATEADO' => $row['NOMBRE_APELLIDO']   // Para guardar en la base de datos
-                );
-            }
-            
-            return $solicitantes;
+        return $this->obtenerPersonasPorRol('solicitante');
+    }
 
-        } catch (Exception $e) {
-            error_log("Error en obtenerSolicitantes: " . $e->getMessage());
-            throw $e;
+    /**
+     * Si el nombre es una persona activa con ese rol, devuelve el Nombre tal
+     * como está en el listado (sin distinguir mayúsculas ni acentos); si no, null.
+     */
+    public function nombrePersonaActivaConRol($rol, $nombre)
+    {
+        return $this->persona()->nombreActivoConRol($rol, $nombre);
+    }
+
+    /**
+     * Valida el valor recibido para un combo de persona. Se acepta:
+     *   - una persona activa con ese rol (se devuelve el Nombre del listado), o
+     *   - el valor que el proyecto ya tenía (opción "(fuera de lista)").
+     * Lanza Exception si no es válido. El valor vacío lo resuelve quien llama.
+     */
+    public function validarPersonaParaRol($rol, $valor, $valorActual = null)
+    {
+        // El valor que el proyecto ya tenía se acepta tal cual (se compara antes de
+        // limpiar el texto, para que un valor viejo siempre coincida consigo mismo)
+        if ($valorActual !== null && trim((string)$valor) === trim((string)$valorActual)) {
+            return trim((string)$valorActual);
         }
+
+        $valor = $this->limpiarTextoUTF8((string)$valor);
+
+        $nombre = $this->nombrePersonaActivaConRol($rol, $valor);
+
+        if ($nombre === null) {
+            $textos = ['solicitante' => 'Solicitante', 'lider' => 'Líder de Proyecto', 'desarrollador' => 'Desarrollador'];
+            throw new Exception('"' . $valor . '" no es una persona activa habilitada como ' . ($textos[$rol] ?? $rol) . '. Revisá el listado en Parámetros › Personas.');
+        }
+
+        return $nombre;
     }
 
     /**
@@ -821,24 +874,21 @@ class Proyecto
     }
 
     /**
-     * Busca el mail de una persona por su nombre en RO_USUARIOS_CARGA_PROYECTOS,
-     * reusando obtenerSolicitantes() (Solicitante/LiderProyecto son texto libre).
+     * Busca el mail de una persona por su nombre en PersonasProyectos
+     * (Solicitante/LiderProyecto se guardan como texto en HistorialProyectos).
+     * No importa si la persona está activa ni qué roles tiene: un proyecto
+     * viejo puede tener como líder a alguien que hoy está desactivado y el
+     * aviso le tiene que llegar igual. La comparación la hace SQL Server sin
+     * distinguir mayúsculas, acentos ni espacios al inicio/fin (mismo criterio
+     * que RO_SP_NOTIF_ADMIN_PROYECTOS). null si no está o no tiene mail.
      */
     private function resolverMailPorNombre($nombre)
     {
-        if (empty($nombre)) {
+        if (empty($nombre) || trim($nombre) === '') {
             return null;
         }
 
-        $nombreNormalizado = mb_strtolower(trim($nombre));
-
-        foreach ($this->obtenerSolicitantes() as $persona) {
-            if (mb_strtolower(trim($persona['NOMBRE_APELLIDO'])) === $nombreNormalizado) {
-                return $persona['MAIL'];
-            }
-        }
-
-        return null;
+        return $this->persona()->resolverMail($nombre);
     }
 
     public function agregarComentario($idProyecto, $autor, $comentario)

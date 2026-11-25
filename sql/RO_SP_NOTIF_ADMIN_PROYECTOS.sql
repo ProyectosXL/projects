@@ -17,11 +17,17 @@
          (mismo mecanismo que usa adminNotificaciones para el resto de las
          notificaciones del sistema).
 
-    Resolución de mails: tanto Solicitante como LiderProyecto son texto libre en
-    HistorialProyectos; se intenta encontrar el mail matcheando ese texto contra
-    RO_USUARIOS_CARGA_PROYECTOS.NOMBRE_APELLIDO (misma tabla que usa
-    Proyecto::obtenerSolicitantes() en adminProyectos/class/proyecto.php). Si no
-    hay coincidencia para el líder, el mail se envía igual, sin ese CC.
+    Resolución de mails: Solicitante y LiderProyecto se guardan como texto en
+    HistorialProyectos (el Nombre de dbo.PersonasProyectos); el mail se busca
+    matcheando ese texto contra PersonasProyectos.Nombre (sin distinguir
+    mayúsculas, acentos ni espacios al inicio/fin), sin importar si la persona
+    está activa ni qué roles tiene. Es el mismo criterio que usa
+    Proyecto::resolverMailPorNombre() en adminProyectos/class/proyecto.php.
+    Si no hay coincidencia (o la persona no tiene mail) para el líder, el mail
+    se envía igual, sin ese CC.
+
+    Requiere que exista dbo.PersonasProyectos (sql/PersonasProyectos.sql), que
+    se despliega antes que este script.
 
     IMPORTANTE: el número "10" debe coincidir siempre con la constante
     Proyecto::DIAS_VENTANA_ACEPTACION (adminProyectos/class/proyecto.php).
@@ -30,6 +36,14 @@
     solo se envía un mail de prueba a esa dirección para validar el profile de
     Database Mail y el template (mismo mecanismo de "Probar" que usa el panel de
     adminNotificaciones para otras notificaciones).
+
+    Parámetro opcional @LimiteProyectos: NULL (default, lo que usa el job) =
+    procesa todos; N = transiciona/notifica solo N proyectos (para probar contra
+    la tabla real). Ej.: EXEC dbo.RO_SP_NOTIF_ADMIN_PROYECTOS @LimiteProyectos = 1;
+
+    Nota de versión: este archivo se sincronizó con la versión que estaba
+    desplegada en la base (que ya tenía @LimiteProyectos y @SubjectPrueba y no
+    estaban en el repo) antes de cambiar la resolución de mails a PersonasProyectos.
 */
 
 -- ============================================================================
@@ -56,7 +70,8 @@ GO
 -- 2) Stored Procedure
 -- ============================================================================
 CREATE OR ALTER PROCEDURE dbo.RO_SP_NOTIF_ADMIN_PROYECTOS
-    @EmailPrueba NVARCHAR(200) = NULL
+    @EmailPrueba      NVARCHAR(200) = NULL,   -- solo valida envío de mail, NO toca datos
+    @LimiteProyectos  INT           = NULL    -- NULL = todos (producción); N = procesa solo N proyectos reales
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -82,10 +97,14 @@ BEGIN
         RETURN;
 
     -- ------------------------------------------------------------------
-    -- Modo prueba: no toca datos, solo valida el envío de mail
+    -- Modo prueba de mail: no toca datos, solo valida el envío
     -- ------------------------------------------------------------------
     IF @EmailPrueba IS NOT NULL
     BEGIN
+        DECLARE @SubjectPrueba NVARCHAR(255);
+
+        SET @SubjectPrueba = N'[PRUEBA] ' + @SubjectBase;
+
         DECLARE @BodyPrueba NVARCHAR(MAX);
         SET @BodyPrueba =
             N'<html><body style="font-family: Arial, sans-serif;">' +
@@ -100,7 +119,7 @@ BEGIN
         EXEC msdb.dbo.sp_send_dbmail
             @profile_name = @Profile,
             @recipients = @EmailPrueba,
-            @subject = N'[PRUEBA] ' + @SubjectBase,
+            @subject = @SubjectPrueba,
             @body = @BodyPrueba,
             @body_format = 'HTML';
 
@@ -109,6 +128,8 @@ BEGIN
 
     -- ------------------------------------------------------------------
     -- 1) Transición de etapa (aceptación tácita)
+    --    @LimiteProyectos limita cuántos proyectos se transicionan/notifican.
+    --    NULL = todos; valor N = solo N (para probar contra la tabla real).
     -- ------------------------------------------------------------------
     DECLARE @Afectados TABLE (
         RowId INT IDENTITY(1,1) PRIMARY KEY,
@@ -119,7 +140,9 @@ BEGIN
         FechaEntregaCliente DATETIME
     );
 
-    UPDATE HistorialProyectos
+    DECLARE @Tope INT = COALESCE(@LimiteProyectos, 2147483647); -- INT max = "todos"
+
+    UPDATE TOP (@Tope) HistorialProyectos
     SET EtapaProyecto = N'Implementación',
         FechaAprobacionCliente = GETDATE(),
         TipoAprobacionCliente = 'TACITA',
@@ -158,16 +181,17 @@ BEGIN
         SET @MailSolicitante = NULL;
         SET @MailLider = NULL;
 
-        SELECT @MailSolicitante = MAIL
-        FROM RO_USUARIOS_CARGA_PROYECTOS
-        WHERE LTRIM(RTRIM(NOMBRE_APELLIDO)) COLLATE DATABASE_DEFAULT
+        -- Nombre es único en PersonasProyectos; no se filtra por Activo ni por rol
+        SELECT @MailSolicitante = NULLIF(LTRIM(RTRIM(Mail)), '')
+        FROM dbo.PersonasProyectos
+        WHERE Nombre COLLATE DATABASE_DEFAULT
             = LTRIM(RTRIM(@Solicitante)) COLLATE DATABASE_DEFAULT;
 
         IF @LiderProyecto IS NOT NULL AND LTRIM(RTRIM(@LiderProyecto)) <> ''
         BEGIN
-            SELECT @MailLider = MAIL
-            FROM RO_USUARIOS_CARGA_PROYECTOS
-            WHERE LTRIM(RTRIM(NOMBRE_APELLIDO)) COLLATE DATABASE_DEFAULT
+            SELECT @MailLider = NULLIF(LTRIM(RTRIM(Mail)), '')
+            FROM dbo.PersonasProyectos
+            WHERE Nombre COLLATE DATABASE_DEFAULT
                 = LTRIM(RTRIM(@LiderProyecto)) COLLATE DATABASE_DEFAULT;
         END
 

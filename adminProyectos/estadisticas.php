@@ -1,3 +1,7 @@
+<?php
+// Sesión necesaria para mostrar u ocultar la pestaña Parámetros según el permiso del usuario
+session_start();
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -119,6 +123,7 @@
                     <li class="nav-item">
                         <a class="nav-link" href="programas.php">Programas</a>
                     </li>
+<?php include __DIR__ . '/includes/navParametros.php'; ?>
                 </ul>
             </div>
         </div>
