@@ -70,7 +70,8 @@ class Proyecto
     private function persona()
     {
         if ($this->personaObj === null) {
-            $this->personaObj = new Persona();
+            // Reutiliza la conexión de Proyecto (ver Persona::__construct)
+            $this->personaObj = new Persona($this->cid_central);
         }
 
         return $this->personaObj;

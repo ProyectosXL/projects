@@ -35,8 +35,20 @@ class Persona
     private $conexion;
     private $cid_central;
 
-    function __construct()
+    /**
+     * @param resource|null $cidCentral Conexión central ya abierta para reutilizar
+     *        (la pasa Proyecto). Abrir una segunda Conexion en el mismo pedido
+     *        puede fallar: classEnv.php lee el .env con getenv() y, con Apache en
+     *        Windows, otro pedido simultáneo que termina puede dejar esas
+     *        variables vacías ("Invalid value type for option Database").
+     */
+    function __construct($cidCentral = null)
     {
+        if ($cidCentral) {
+            $this->cid_central = $cidCentral;
+            return;
+        }
+
         $rutaConexion = __DIR__ . '/../../class/conexion.php';
 
         if (!file_exists($rutaConexion)) {
